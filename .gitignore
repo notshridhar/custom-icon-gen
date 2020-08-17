@@ -1,0 +1,7 @@
+__pycache__/
+
+.DS_Store
+
+activate_env
+test.svg
+test.py
