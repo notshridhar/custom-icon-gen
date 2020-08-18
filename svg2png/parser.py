@@ -141,6 +141,15 @@ def parse_svg_path(command_str: str, path: draw.DrawablePath):
                         
             elif command.upper() == "Z":
                 path.closepath()
+
+            elif command == "C":
+                coord_args = parse_svg_coords(argument, 3)
+                handle1, handle2, dest = coord_args
+                path.curveto(handle1, handle2, dest)
+            elif command == "c":
+                coord_args = parse_svg_coords(argument, 3)
+                handle1, handle2, dest = coord_args
+                path.rcurveto(handle1, handle2, dest)
             
             else:
                 error_msg = "{} command not supported".format(command)

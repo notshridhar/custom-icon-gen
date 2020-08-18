@@ -250,6 +250,32 @@ class DrawablePath(Drawable):
         current_subpath.append(dest)
         self.current_pos = dest
 
+    def curveto(self, handle1: Point, handle2: Point, dest: Point):
+        p0 = self.current_pos
+        p1 = handle1
+        p2 = handle2
+        p3 = dest
+
+        t = 0.1
+
+        while t <= 1:
+            c = [(1-t)**3, 3 * (1-t)**2 * t, 3 * (1-t) * t**2, t**3]
+            bx = c[0] * p0.x + c[1] * p1.x + c[2] * p2.x + c[3] * p3.x
+            by = c[0] * p0.y + c[1] * p1.y + c[2] * p2.y + c[3] * p3.y
+
+            current_path = self.subpaths[-1]
+            current_path.append(Point(bx, by))
+
+            t += 0.1
+        
+        self.current_pos = dest
+
+    def rcurveto(self, handle1: Point, handle2: Point, dest: Point):
+        handle1 += self.current_pos
+        handle2 += self.current_pos
+        dest += self.current_pos
+        self.curveto(handle1, handle2, dest)
+
     @Drawable.remap_color
     def draw(self, surface: RenderSurface, transform=Transform()):
         """
