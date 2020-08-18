@@ -111,7 +111,7 @@ def parse_svg_path(command_str: str, path: draw.DrawablePath):
     command_str += ";"
     
     # parse each char one by one
-    # not at all efficient, but boy is it readable
+    # not at all efficient
     for char in command_str:
 
         # CHAD command
@@ -121,24 +121,26 @@ def parse_svg_path(command_str: str, path: draw.DrawablePath):
         # - literally has alpha in condition
         if char.isalpha() or char == ";":
 
+            # no registered command
             if not command:
                 pass
 
-            elif command.upper() == "M":
+            elif command == "M":
                 dest = parse_svg_coords(argument, 1)[0]
-                path.moveto(dest, rel=command.islower())
-            
-            elif command.upper() == "L":
+                path.moveto(dest)
+            elif command == "m":
                 dest = parse_svg_coords(argument, 1)[0]
-                path.lineto(dest, rel=command.islower())
+                path.rmoveto(dest)
             
+            elif command == "L":
+                dest = parse_svg_coords(argument, 1)[0]
+                path.lineto(dest)
+            elif command == "l":
+                dest = parse_svg_coords(argument, 1)[0]
+                path.rlineto(dest)
+                        
             elif command.upper() == "Z":
                 path.closepath()
-
-            # elif command == "C":
-            #     coord_args = parse_svg_coords(argument, 3)
-            #     handle1, handle2, dest = coord_args
-            #     path.curveto(dest, handle1, handle2)
             
             else:
                 error_msg = "{} command not supported".format(command)

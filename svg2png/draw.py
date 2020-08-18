@@ -169,30 +169,6 @@ class Drawable:
         self.fillcolor = ""
         self.linecolor = ""
 
-    def movement_defaults(func):
-        """
-        Decorator for default movement functions
-        ----------------------
-        Keyword Arguments
-        - rel (bool) - whether relative system
-        """
-        def inner(self, dest: Point, *args, **kwargs):
-
-            # this should never happen
-            assert isinstance(dest, Point), "dest passed is not a point"
-
-            # relative movement handling
-            # experimental - cannot handle other arguments
-            if kwargs.get("rel") == True:
-                dest += self.current_pos
-
-            func(self, dest, *args, **kwargs)
-
-            # save current pos
-            self.current_pos = dest
-        
-        return inner
-
     def remap_color(func):
         """
         Decorator for color remapping
@@ -253,24 +229,26 @@ class DrawablePath(Drawable):
         self.fillcolor = fill
         self.linecolor = outline
     
-    @Drawable.movement_defaults
-    def moveto(self, dest:Point, **kwargs):
+    def moveto(self, dest:Point):
         self.subpaths.append([dest])
+        self.current_pos = dest
+    
+    def rmoveto(self, dest:Point):
+        self.moveto(dest + self.current_pos)
 
-    @Drawable.movement_defaults
-    def lineto(self, dest:Point, **kwargs):
+    def lineto(self, dest:Point):
         current_subpath = self.subpaths[-1]
         current_subpath.append(dest)
+        self.current_pos = dest
+    
+    def rlineto(self, dest:Point):
+        self.lineto(dest + self.current_pos)
 
     def closepath(self):
         current_subpath = self.subpaths[-1]
         dest = current_subpath[0]
         current_subpath.append(dest)
         self.current_pos = dest
-
-    def curveto(self, dest:Point, handle1: Point, handle2: Point):
-        # cubic bezier
-        pass
 
     @Drawable.remap_color
     def draw(self, surface: RenderSurface, transform=Transform()):
@@ -284,11 +262,6 @@ class DrawablePath(Drawable):
         for path in self.subpaths:
             # apply transforms to points and convert to tuple for drawing
             path = [p.transform(transform).as_tuple() for p in path]
-
-            # skip small polygons for now
-            if len(path) < 2:
-                print("Skipping")
-                continue
 
             # draw filled polygon
             surface.draw.polygon(path, fill=self.fillcolor, outline=self.linecolor)
