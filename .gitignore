@@ -1,7 +1,13 @@
+.ipynb_checkpoints/
+.mypy_cache/
+.vscode/
 __pycache__/
 
 .DS_Store
 
 activate_env
-test.svg
+
 test.py
+test.svg
+
+**.png
