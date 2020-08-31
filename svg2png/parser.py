@@ -234,7 +234,7 @@ class SVGParser:
         self.filename = filename
         self.root = root
         self.namespace = re.findall(r"{.*}\s*", root.tag)[0].strip("{}")
-        self.canvas_size = cast(Pair, map(int, viewbox[-2:]))
+        self.canvas_size = cast(Pair, tuple(map(int, viewbox[-2:])))
 
         # drawing object storage
         self.draw_store = vector.DrawableObjectStore()

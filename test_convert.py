@@ -11,15 +11,14 @@ svg_files = glob.glob("./tests/svg_files/*.svg")
 # DRY RUN
 # -------
 for filename in svg_files:
-    surface = vector.RenderSurface(render_size)
     svgtree = parser.SVGParser(filename)
     
 
 # RENDER INTO PNG
 # ---------------
 for filename in svg_files:
-    surface = vector.RenderSurface(render_size)
     svgtree = parser.SVGParser(filename)
+    surface = vector.RenderSurface(svgtree.canvas_size)
     for drw in svgtree.draw_store:
         drw.draw(surface)
     outname = filename.replace(".svg", ".png")
