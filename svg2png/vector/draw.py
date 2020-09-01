@@ -7,6 +7,7 @@ from typing import Optional, Union
 from typing import Tuple, List, Callable, Any
 
 from copy import deepcopy
+from abc import abstractmethod, ABC
 from PIL import Image, ImageDraw # type: ignore
 
 from .base import Point, Transform, BBox
@@ -92,7 +93,7 @@ class DrawableStyle:
         return deepcopy(self)
 
 
-class Drawable:
+class Drawable(ABC):
     def __init__(
         self,
         canvas: Pair,
@@ -121,6 +122,7 @@ class Drawable:
         scale_x = out_bbox.width / self.canvas_size[0]
         return Transform(out_bbox.offset, (scale_x, scale_y))
 
+    @abstractmethod
     def draw(self, surface: RenderSurface, transform=Transform()):
         """ Handle drawing on surface (abstract) """
         pass
