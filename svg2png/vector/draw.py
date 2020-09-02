@@ -3,7 +3,7 @@
 # Functions and classes for drawing
 
 
-from typing import Optional, Union
+from typing import Optional, Union, cast
 from typing import Tuple, List, Callable, Any
 
 from copy import deepcopy
@@ -100,13 +100,8 @@ class Drawable(ABC):
         elem_id: Optional[str],
         style: DrawableStyle,
     ):
-        # ensure canvas can be unpacked
-        # throws error if not unpackable
-        _, _ = canvas
-
         self.elem_id = elem_id
-        self.canvas_size = canvas
-
+        self.canvas_size = Point(canvas)
         self.style = style
 
     def __str__(self):
@@ -194,11 +189,6 @@ class DrawablePath(Drawable):
         fill = surface.cmap(self.style.fillcolor.rgba)
         stroke = surface.cmap(self.style.linecolor.rgba)
 
-        # skip if transparent
-        if not fill[-1] and not stroke[-1]:
-            print("skipped")
-            return
-
         for path in self.subpaths:
             # apply transforms to points and convert to tuple for drawing
             path_tuple = [tuple(p.transform(transform)) for p in path]
@@ -209,11 +199,46 @@ class DrawablePath(Drawable):
 
             # binary transparency
             if fill[-1] and stroke[-1]:
-                surface.draw.polygon(path_tuple, fill=fill[:3], outline=stroke[:3])
+                surface.draw.polygon(path_tuple, fill[:3], stroke[:3])
             elif fill[-1]:
-                surface.draw.polygon(path_tuple, fill=fill[:3])
-            else:
-                surface.draw.polygon(path_tuple, outline=stroke[:3])
+                surface.draw.polygon(path_tuple, fill[:3])
+            elif stroke[-1]:
+                surface.draw.polygon(path_tuple, stroke[:3])
+
+
+class DrawableEllipse(Drawable):
+    def __init__(
+        self,
+        canvas: Pair,
+        elem_id: Optional[str],
+        style: DrawableStyle,
+    ):
+        super().__init__(canvas, elem_id, style)
+
+        self.center = Point((0, 0))
+        self.radius = Point((0, 0))
+
+    def setup(self, center:Pair=(0, 0), radius:Pair=(0, 0)):
+        self.center = Point(center)
+        self.radius = Point(radius)
+
+    def draw(self, surface: RenderSurface, transform=Transform()):
+        fill = surface.cmap(self.style.fillcolor.rgba)
+        stroke = surface.cmap(self.style.linecolor.rgba)
+
+        t_center = self.center.transform(transform)
+        t_radius = self.radius.transform(transform)
+
+        bb_min = list(t_center + t_radius)
+        bb_max = list(t_center - t_radius)
+        ellipse_bbox = bb_min + bb_max
+
+        if fill[-1] and stroke[-1]:
+            surface.draw.ellipse(ellipse_bbox, fill[:3], stroke[:3], width=5)
+        elif fill[-1]:
+            surface.draw.ellipse(ellipse_bbox, fill[:3], width=5)
+        elif stroke[-1]:
+            surface.draw.ellipse(ellipse_bbox, stroke[:3], width=5)
 
 
 # OBJECT STORAGE

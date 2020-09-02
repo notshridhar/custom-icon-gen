@@ -9,7 +9,7 @@
 
 
 from typing import Optional, Union, cast
-from typing import Tuple, List
+from typing import Tuple, List, Any
 
 from copy import deepcopy
 import xml.etree.ElementTree as elemtree
@@ -22,6 +22,7 @@ from . import vector
 Num = Union[int, float]
 Pair = Tuple[Num, Num]
 Element = elemtree.Element
+DrawableType = Union[vector.Drawable, vector.DrawablePath, vector.DrawableEllipse]
 
 
 # UTILS
@@ -234,23 +235,23 @@ class SVGParser:
         self.filename = filename
         self.root = root
         self.namespace = re.findall(r"{.*}\s*", root.tag)[0].strip("{}")
-        self.canvas_size = cast(Pair, tuple(map(int, viewbox[-2:])))
 
-        # drawing object storage
+        self.canvas_size = cast(Tuple[int, int], viewbox[2:])
+
         self.draw_store = vector.DrawableObjectStore()
 
-        # parse drawables
         self.parse_document()
 
     def iter(self) -> TreeIter:
         return TreeIter(self.root)
 
-    def drawable_handler(self, elem: Element, prop: ElemProp) -> vector.Drawable:
+    def drawable_handler(self, elem: Element, prop: ElemProp) -> DrawableType:
         """
         Handle drawable elements
         Create drawable from element and attribs
         """
 
+        drw: Any = None
         elem_id = elem.attrib.get("id", "")
         prop.style.update(elem.attrib)
         
@@ -262,7 +263,21 @@ class SVGParser:
                 canvas=self.canvas_size,
                 style=prop.style,
             )
-            parse_svg_path(elem.attrib["d"], drw) # construct path
+            parse_svg_path(elem.attrib["d"], drw)
+        
+        # <ellipse>
+        elif elem.tag == "ellipse":
+            print("ellipse")
+            drw = vector.DrawableEllipse(
+                elem_id=elem_id,
+                canvas=self.canvas_size,
+                style=prop.style,
+            )
+            cx = int(elem.attrib.get("cx", 0))
+            cy = int(elem.attrib.get("cy", 0))
+            rx = int(elem.attrib.get("rx", 0))
+            ry = int(elem.attrib.get("ry", 0))
+            drw.setup((cx, cy), (rx, ry))
 
         # <use>
         # tag an already defined vector and push it to render list
@@ -276,7 +291,7 @@ class SVGParser:
             drw = self.draw_store.get(href_id).copy()
             drw.elem_id = elem_id
             drw.style.update(prop.style.as_dict())
-    
+        
         return drw
 
     def parse_document(self):
@@ -285,7 +300,7 @@ class SVGParser:
         prop_stack: List[ElemProp] = []
 
         grouping_tags = ["svg", "defs", "g"]
-        drawable_tags = ["path", "use"]
+        drawable_tags = ["path", "ellipse", "use"]
 
         # depth first tree iterator
         iterator = self.iter()
