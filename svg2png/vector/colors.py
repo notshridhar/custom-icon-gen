@@ -25,7 +25,7 @@ def parse_color(color_str: str, opacity: int) -> RGBATuple:
         g = int(color_str[2] * 2, 16)
         b = int(color_str[3] * 2, 16)
         return (r, g, b, a)
-    
+
     # 4 digit hex code
     if re.match("#[a-f0-9]{4}$", color_str):
         r = int(color_str[1] * 2, 16)
@@ -78,29 +78,29 @@ class Color:
         # string - parse color
         elif isinstance(col, str):
             rgba = parse_color(col, alpha)
-        
+
         # rgb given as tuple or list
-        elif isinstance(col, tuple) or isinstance(col, list):
+        elif isinstance(col, list) or isinstance(col, tuple):
             if len(col) == 3:
-                rgb_list = list(map(int, col))
-                rgb_list.append(alpha)
-                rgba = cast(RGBATuple, rgb_list)
+                r, g, b = map(int, col)
+                rgba = (r, g, b, alpha)
             elif len(col) == 4:
-                rgba = cast(RGBATuple, map(int, col))
-        
+                r, g, b, a = map(int, col)
+                rgba = (r, g, b, a)
+
         # grayscale factor given
         elif isinstance(col, int) or isinstance(col, float):
             fac = int(col)
             rgba = (fac, fac, fac, alpha)
-        
+
         # cannot decode
         else:
             raise TypeError("Invalid color constructor", col)
-        
+
         # construct finally
         self.rgba = rgba
         self.r, self.g, self.b, self.a = rgba
-    
+
     def __getitem__(self, key):
         return self.rgba[key]
 
@@ -116,7 +116,7 @@ class Color:
         return f"hex:{hex_str} alpha:{self.rgba[-1]}"
 
     def as_hex(self) -> str:
-        """ Get RGB hex string """ 
+        """ Get RGB hex string """
         hex_str = "#"
         for i in self.rgba[:3]:
             if i >= 256:

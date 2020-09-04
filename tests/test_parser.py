@@ -7,7 +7,7 @@ from svg2png import vector
 class TestA1_Subparsers(unittest.TestCase):
     def test_a(self):
         # coordinate parser
-        
+
         # different types
         p = parser.parse_coords("120 200")
         self.assertTrue(p == [120, 200])
@@ -33,8 +33,7 @@ class TestA1_Subparsers(unittest.TestCase):
         string = "M2 5 H20 L10 34e-1 V15 Z m2 5 h20 l10-30 v15 z"
         expct1 = [(2, 5), (20, 5), (10, 3.4), (10, 15), (2, 5)]
         expct2 = [(4, 10), (24, 10), (34, -20), (34, -5), (4, 10)]
-        style = vector.DrawableStyle()
-        path = vector.DrawablePath((50, 50), "path", style)
+        path = vector.DrawablePath("path")
         parser.parse_svg_path(string, path)
         self.assertTrue(path.subpaths == [expct1, expct2])
 

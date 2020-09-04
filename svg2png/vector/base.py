@@ -4,6 +4,8 @@ from typing import Union, Sequence, Tuple
 # type hints
 Num = Union[int, float]
 Pair = Tuple[Num, Num]
+IntPair = Tuple[int, int]
+FloatPair = Tuple[float, float]
 
 
 class Transform:
@@ -14,9 +16,14 @@ class Transform:
     - scale     (tuple) - x and y multipliers
     """
 
-    def __init__(self, translate: Pair=(0, 0), scale: Pair=(1.0, 1.0)):
-        self.translate = translate
-        self.scale = scale
+    def __init__(self, translate: Pair = (0, 0), scale: Pair = (1, 1)):
+
+        # unpack and pack for runtime checking
+        t_x, t_y = map(float, translate)
+        s_x, s_y = map(float, scale)
+
+        self.translate = (t_x, t_y)
+        self.scale = (s_x, s_y)
 
 
 class Point:
@@ -35,9 +42,6 @@ class Point:
 
     def __getitem__(self, key):
         return [self.x, self.y][key]
-
-    def __len__(self):
-        return 2
 
     def __iter__(self):
         return iter((self.x, self.y))
@@ -96,44 +100,42 @@ class BBox:
 
     def __init__(self, box: tuple):
 
-        # convert to float
-        arglist = list(map(float, box)) # type: ignore
+        arglist = list(map(float, box))  # type: ignore
 
-        # case1 : all specified
+        # all params specified
         if len(arglist) == 4:
             self.left, self.top, self.width, self.height = arglist
-        # case2 : only size specified
+
+        # only size specified
         elif len(arglist) == 2:
-            self.left, self.top = 0, 0
+            self.left, self.top = 0.0, 0.0
             self.width, self.height = arglist
+
         # invalid
         else:
-            raise ValueError("invalid bbox sequence used to construct")
+            raise ValueError("invalid bbox tuple")
 
     def __getitem__(self, key):
         return [self.left, self.top, self.width, self.height][key]
-
-    def __len__(self):
-        return 4
 
     def __iter__(self):
         return iter((self.left, self.top, self.width, self.height))
 
     @property
-    def offset(self) -> Pair:
+    def offset(self) -> FloatPair:
         return (self.left, self.top)
 
     @property
-    def size(self) -> Pair:
+    def size(self) -> FloatPair:
         return (self.width, self.height)
 
     @property
-    def center(self) -> Pair:
+    def center(self) -> FloatPair:
         hcenter = self.left + self.width / 2
         vcenter = self.top + self.height / 2
         return (hcenter, vcenter)
 
-    def get_sub_bbox(self, fraction: Pair, alignment="MM") -> "BBox":
+    def get_sub_bbox(self, fraction: FloatPair, alignment="MM") -> "BBox":
         """
         Get a smaller bounding box from this box
         -------------

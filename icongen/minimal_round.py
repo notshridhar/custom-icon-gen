@@ -12,11 +12,10 @@ def color_map(in_color: vector.RGBATuple) -> vector.RGBATuple:
     -------------------------------
     - takes in and outputs rgba tuple
     """
-    return in_color # disabled
 
     # divide rgb and alpha
     in_rgb = in_color[:3]
-    in_opa = in_color[-1:]
+    in_opa = in_color[-1]
 
     primary_color = (100, 181, 246)
     secondary_color = (255, 255, 255)
@@ -32,13 +31,14 @@ def color_map(in_color: vector.RGBATuple) -> vector.RGBATuple:
         slider = lambda x, y: int((1 - factor) * x + factor * y)
         zip_cols = zip(primary_color, secondary_color)
         final_rgb = [slider(p, s) for p, s in zip_cols]
-        return tuple(final_rgb) + in_opa
+        f_r, f_g, f_b = final_rgb
+        return (f_r, f_g, f_b, in_opa)
 
     # no conditions met -> return original color
     return in_color
 
 
-def create_icon_png_from_svg(in_file: str, render_size: vector.Pair) -> vector.RenderSurface:
+def render_from_svg(in_file: str, render_size: vector.IntPair) -> vector.RenderSurface:
     """ Create a custom styled png from svg file """
 
     # DESIGN CORE PARAMETERS
@@ -54,22 +54,11 @@ def create_icon_png_from_svg(in_file: str, render_size: vector.Pair) -> vector.R
     surface.set_color_map(color_map)
 
     # svg processing
-    svg_tree = parser.SVGParser(in_file)
+    draw_store = parser.parse_svg_file(in_file)
     svg_bb = surface_bb.get_sub_bbox((svg_fraction, svg_fraction))
 
-    # print("Drawing background")
-    # print("--------------------")
-    # imgdrawer.draw
-    # print("--------------------")
-
-    # print("Drawing vectors")
-    # print("--------------------")
-    for drw in svg_tree.draw_store:
-        print(f"Drawing {drw.style.fillcolor}")
-        v_transform = drw.get_transform(svg_bb)
-        drw.draw(surface, transform=v_transform)
-    # print("--------------------")
-    # print("Successful!")
+    # draw svg on surface
+    transform = draw_store.get_transform(svg_bb)
+    draw_store.draw_all(surface, transform)
 
     return surface
-
