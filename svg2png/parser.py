@@ -3,13 +3,8 @@
 # Contains tools for parsing svg format and other strings
 
 
-# SVG Unsupported Stuff
-# ---------------------
-# <g> elements cannot be reused later in group
-
-
-from typing import Optional, Union, cast
-from typing import Tuple, List
+from typing import Optional, Union
+from typing import Tuple, List, Iterable, Any
 
 from copy import deepcopy
 import xml.etree.ElementTree as elemtree
@@ -19,17 +14,15 @@ from . import vector
 
 
 # type hints
-Num = Union[int, float]
-Pair = Tuple[Num, Num]
 Element = elemtree.Element
+IntPair = Tuple[int, int]
+FloatPair = Tuple[float, float]
 
 
 # UTILS
 # =================
-def clean_tag(tag: str) -> str:
-    """ Get the tag name without namespace """
-    pattern = "{.*}\s*"
-    return re.sub(pattern, "", tag)
+def pair_coords(coord_list: List[float]) -> List[FloatPair]:
+    return list(zip(coord_list[::2], coord_list[1::2]))
 
 
 # SUBPARSERS
@@ -45,10 +38,6 @@ def parse_coords(coord_str: str) -> List[float]:
     num_re = r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?"
     point_list = list(map(float, re.findall(num_re, coord_str)))
     return point_list
-
-
-def pair_coords(coord_list: list) -> List[Pair]:
-    return list(zip(coord_list[::2], coord_list[1::2]))
 
 
 def parse_svg_path(command_str: str, path: vector.DrawablePath):
@@ -89,7 +78,7 @@ def parse_svg_path(command_str: str, path: vector.DrawablePath):
                 coord_list = parse_coords(argument)
                 dest = pair_coords(coord_list)[0]
                 path.moveto(dest, rel=command.islower())
-            
+
             elif command_upper == "Z":
                 path.closepath()
 
@@ -136,21 +125,26 @@ def parse_svg_path(command_str: str, path: vector.DrawablePath):
             argument += char
 
 
-# SVG PARSER CLASS
+# SVG PARSER
 # =================
 class TreeIter:
-    def __init__(self, root):
+    def __init__(self, root: Element):
         self.root = root
 
-        self.iter_stack = []
+        self.iter_stack: List[tuple] = []
         self.iter_start = False
+
+    def clean_tag(self, tag: str) -> str:
+        """ Get the tag name without namespace """
+        pattern = "{.*}\s*"
+        return re.sub(pattern, "", tag)
 
     def __iter__(self):
         self.iter_start = True
-        self.root.tag = clean_tag(self.root.tag)
+        self.root.tag = self.clean_tag(self.root.tag)
         self.iter_stack = [(self.root, self.root[::-1])]
         return self
-    
+
     def __next__(self):
 
         # first time iter stack init
@@ -165,7 +159,7 @@ class TreeIter:
             # child exists -> pop and go to next level
             if children:
                 child = children.pop()
-                child.tag = clean_tag(child.tag)
+                child.tag = self.clean_tag(child.tag)
                 self.iter_stack.append((child, child[::-1]))
                 return child, "entry"
 
@@ -196,141 +190,152 @@ class ElemProp:
 
         # style
         self.style = vector.DrawableStyle(attribs)
-    
+
     def copy(self) -> "ElemProp":
         return deepcopy(self)
 
 
-class SVGParser:
+def get_svg_root(filename: str) -> Element:
     """
-    Wrapper Class around xml.etree.ElementTree
-    Customized for svg parsing
-    -----------------------------
-    Versions supported: SVG 1.1
+    Get root svg element from filename
+    Checks version support and validity
+    """
+    supported_svg_vers = ["1.1"]
+
+    tree = elemtree.parse(filename)
+    root = tree.getroot()
+    svgver = root.attrib.get("version", "")
+
+    # preliminary check
+    if not root.tag.endswith("svg"):
+        raise ValueError(f"file {filename} is not a valid svg file")
+
+    # warn if svg version is not tested
+    if not svgver:
+        print(f"warning: svg version not mentioned")
+    elif svgver not in supported_svg_vers:
+        print(f"warning: svg version {svgver} is not tested")
+
+    return root
+
+
+def svg_drawable_handler(elem: Element, prop: ElemProp) -> vector.Drawable:
+    """
+    Handle drawable elements
+    Create drawable from element and attribs
     """
 
-    SUPPORTED_VERS = ["1.1"]
+    drw: Any = None
+    elem_id = elem.attrib.get("id", "")
+    prop.style.update(elem.attrib)
 
-    def __init__(self, filename: str):
+    # <path>
+    # parse path and store to render list
+    if elem.tag == "path":
+        drw = vector.DrawablePath(elem_id)
+        drw.style = prop.style.copy()
+        parse_svg_path(elem.attrib["d"], drw)
 
-        tree = elemtree.parse(filename)
-        root = tree.getroot()
-        attribs = root.attrib
+    # <ellipse>
+    elif elem.tag == "ellipse":
+        drw = vector.DrawableEllipse(elem_id)
+        drw.style = prop.style.copy()
+        cx = int(elem.attrib.get("cx", 0))
+        cy = int(elem.attrib.get("cy", 0))
+        rx = int(elem.attrib.get("rx", 0))
+        ry = int(elem.attrib.get("ry", 0))
+        drw.setup((cx, cy), (rx, ry))
 
-        svgver = attribs.get("version", "")
-        viewbox = attribs.get("viewBox", "").split()
+    return drw
 
-        # preliminary check
-        if not root.tag.endswith("svg"):
-            raise TypeError(f"file {filename} is not a valid svg file")
 
-        # warn if svg version is not tested
-        if not svgver:
-            print(f"warning: svg version not mentioned")
-        elif svgver not in SVGParser.SUPPORTED_VERS:
-            print(f"warning: svg version {svgver} is not tested")
+def parse_svg_file(filename: str) -> vector.DrawableObjectStore:
 
-        # construct all self attribs
-        self.filename = filename
-        self.root = root
-        self.namespace = re.findall(r"{.*}\s*", root.tag)[0].strip("{}")
-        self.canvas_size = cast(Pair, tuple(map(int, viewbox[-2:])))
+    root = get_svg_root(filename)
+    namespace = re.findall(r"{.*}\s*", root.tag)[0].strip("{}")
 
-        # drawing object storage
-        self.draw_store = vector.DrawableObjectStore()
+    viewbox = root.attrib.get("viewBox", "").split()
 
-        # parse drawables
-        self.parse_document()
+    view_w, view_h = map(int, viewbox[2:])
+    canvas_size = (view_w, view_h)
 
-    def iter(self) -> TreeIter:
-        return TreeIter(self.root)
+    # state storage
+    prop_stack: List[ElemProp] = []
+    draw_store = vector.DrawableObjectStore(canvas_size)
 
-    def drawable_handler(self, elem: Element, prop: ElemProp) -> vector.Drawable:
-        """
-        Handle drawable elements
-        Create drawable from element and attribs
-        """
+    # tag list
+    grouping_tags = ["svg", "defs", "g"]
+    drawable_tags = ["path", "ellipse"]
 
-        elem_id = elem.attrib.get("id", "")
-        prop.style.update(elem.attrib)
-        
-        # <path>
-        # parse path and store to render list
-        if elem.tag == "path":
-            drw = vector.DrawablePath(
-                elem_id=elem_id,
-                canvas=self.canvas_size,
-                style=prop.style,
-            )
-            parse_svg_path(elem.attrib["d"], drw) # construct path
+    # depth first tree iterator
+    iterator = TreeIter(root)
+    for elem, event in iterator:
 
-        # <use>
+        # exit event -> pop props
+        if event == "exit":
+            prop_stack.pop()
+            continue
+
+        # grouping elements
+        # change state for children to inherit
+        if elem.tag in grouping_tags:
+
+            if elem.tag == "svg":
+                new_prop = ElemProp(elem.attrib)
+                prop_stack.append(new_prop)
+
+            elif elem.tag == "defs":
+                new_prop = prop_stack[-1].copy()
+                new_prop.define_mode = True
+                prop_stack.append(new_prop)
+
+            elif elem.tag == "g":
+                new_prop = prop_stack[-1].copy()
+                new_prop.style.update(elem.attrib)
+                prop_stack.append(new_prop)
+
+        # drawables
+        # do not change states
+        elif elem.tag in drawable_tags:
+
+            # skip all children (recursive)
+            iterator.skip()
+
+            # get drawable element after updating props
+            prop = prop_stack[-1].copy()
+            drw = svg_drawable_handler(elem, prop)
+
+            # append to draw store
+            render = not prop.define_mode
+            draw_store.append(drw.elem_id, drw, render=render)
+
         # tag an already defined vector and push it to render list
         # fails if there is no matching id
         elif elem.tag == "use":
+
+            # skip exit event
+            iterator.skip()
+
+            # href to id linking
             href_finder = lambda x: x.endswith("href")
             href_key = list(filter(href_finder, elem.attrib))[0]
             href_id = elem.attrib[href_key].lstrip("#")
 
+            # update property
+            prop = prop_stack[-1].copy()
+            prop.style.update(elem.attrib)
+
             # get reference as copy
-            drw = self.draw_store.get(href_id).copy()
-            drw.elem_id = elem_id
+            drw = draw_store.get(href_id).copy()
+            drw.elem_id = elem.attrib.get("id", "")
             drw.style.update(prop.style.as_dict())
-    
-        return drw
 
-    def parse_document(self):
+            # append to draw store
+            render = not prop.define_mode
+            draw_store.append(drw.elem_id, drw, render=render)
 
-        # property state storage
-        prop_stack: List[ElemProp] = []
+        # fallback
+        else:
+            iterator.skip()
 
-        grouping_tags = ["svg", "defs", "g"]
-        drawable_tags = ["path", "use"]
-
-        # depth first tree iterator
-        iterator = self.iter()
-        for elem, event in iterator:
-
-            # print(elem.tag, "\t", event)
-
-            # exit event -> pop props
-            if event == "exit":
-                prop_stack.pop()
-                continue
-            
-            # grouping elements
-            # change state for children to inherit
-            if elem.tag in grouping_tags:
-                
-                if elem.tag == "svg":
-                    new_prop = ElemProp(elem.attrib)
-                    prop_stack.append(new_prop)
-
-                elif elem.tag == "defs":
-                    new_prop = prop_stack[-1].copy()
-                    new_prop.define_mode = True
-                    prop_stack.append(new_prop)
-
-                elif elem.tag == "g":
-                    new_prop = prop_stack[-1].copy()
-                    new_prop.style.update(elem.attrib)
-                    prop_stack.append(new_prop)
-            
-            # drawables
-            elif elem.tag in drawable_tags:
-
-                # skip all children (recursive)
-                # since drawable are inclusive
-                iterator.skip()
-
-                # get drawable element after updating props
-                prop = prop_stack[-1].copy()
-                drw = self.drawable_handler(elem, prop)
-
-                # append to draw store
-                render = not prop_stack[-1].define_mode
-                self.draw_store.append(drw.elem_id, drw, render=render)
-
-            # fallback
-            else:
-                iterator.skip()
+    return draw_store

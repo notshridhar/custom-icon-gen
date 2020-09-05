@@ -4,18 +4,19 @@
 
 
 from typing import Optional, Union
-from typing import Tuple, List, Callable, Any
+from typing import Tuple, List, Dict, Callable
 
 from copy import deepcopy
-from PIL import Image, ImageDraw # type: ignore
+from abc import abstractmethod, ABC
+from PIL import Image, ImageDraw  # type: ignore
 
 from .base import Point, Transform, BBox
 from .colors import Color
 
 
 # type hints
-Num = Union[int, float]
-Pair = Tuple[Num, Num]
+IntPair = Tuple[int, int]
+FloatPair = Tuple[float, float]
 
 
 # SURFACE
@@ -27,7 +28,7 @@ class RenderSurface:
     Mode = RGBA
     """
 
-    def __init__(self, size: Pair):
+    def __init__(self, size: IntPair):
         self.image = Image.new("RGBA", size)
         self.draw = ImageDraw.Draw(self.image)
 
@@ -41,7 +42,7 @@ class RenderSurface:
         """
         self.cmap = color_map
 
-    def save(self, filename: str, final_size: Optional[Pair] = None):
+    def save(self, filename: str, final_size: Optional[IntPair] = None):
         """
         Save the rendered image with optional anti-aliasing
         If final size is given, saves resized image with antialiasing
@@ -56,23 +57,23 @@ class RenderSurface:
 # DRAWABLE OBJECTS
 # =======================================
 class DrawableStyle:
-    def __init__(self, attribs: dict = {}):
+    def __init__(self, attrib: dict = {}):
 
         self.fillcolor = Color()
-        self.linecolor = Color("#000000")
+        self.linecolor = Color()
 
-        self.update(attribs)
+        self.update(attrib)
 
-    def update(self, attribs: dict):
+    def update(self, attrib: dict):
         """
         Updates style inplace
         update policy: override [newer first]
         """
-        fill = attribs.get("fill", "")
-        stroke = attribs.get("stroke", "")
-        tot_o = float(attribs.get("opacity", 1.0))
-        fill_o = float(attribs.get("fill-opacity", 1.0)) * tot_o
-        stroke_o = float(attribs.get("stroke-opacity", 1.0)) * tot_o
+        fill = attrib.get("fill", "")
+        stroke = attrib.get("stroke", "")
+        tot_o = float(attrib.get("opacity", 1))
+        fill_o = float(attrib.get("fill-opacity", 1)) * tot_o
+        stroke_o = float(attrib.get("stroke-opacity", 1)) * tot_o
 
         if fill:
             self.fillcolor = Color(fill, opacity=fill_o)
@@ -88,52 +89,30 @@ class DrawableStyle:
         style_dict["stroke-opacity"] = str(self.linecolor.opacity)
         return style_dict
 
-    def copy(self):
+    def copy(self) -> "DrawableStyle":
         return deepcopy(self)
 
 
-class Drawable:
-    def __init__(
-        self,
-        canvas: Pair,
-        elem_id: Optional[str],
-        style: DrawableStyle,
-    ):
-        # ensure canvas can be unpacked
-        # throws error if not unpackable
-        _, _ = canvas
-
+class Drawable(ABC):
+    def __init__(self, elem_id: str):
         self.elem_id = elem_id
-        self.canvas_size = canvas
+        self.style = DrawableStyle()
 
-        self.style = style
-
-    def __str__(self):
-        name = self.elem_id if self.elem_id else "unnamed"
-        return "drawable <{}>".format(name)
+    def set_style(self, attrib: dict):
+        self.style = DrawableStyle(attrib)
 
     def copy(self):
         return deepcopy(self)
 
-    def get_transform(self, out_bbox: BBox):
-        """ Get transforms from bounding box """
-        scale_y = out_bbox.height / self.canvas_size[1]
-        scale_x = out_bbox.width / self.canvas_size[0]
-        return Transform(out_bbox.offset, (scale_x, scale_y))
-
+    @abstractmethod
     def draw(self, surface: RenderSurface, transform=Transform()):
         """ Handle drawing on surface (abstract) """
         pass
 
 
 class DrawablePath(Drawable):
-    def __init__(
-        self,
-        canvas: Pair,
-        elem_id: Optional[str],
-        style: DrawableStyle,
-    ):
-        super().__init__(canvas, elem_id, style)
+    def __init__(self, elem_id: str):
+        super().__init__(elem_id)
 
         # core
         self.subpaths: List[List[Point]] = []
@@ -144,18 +123,20 @@ class DrawablePath(Drawable):
         # state
         self.current_pos = Point((0, 0))
 
-    def moveto(self, dest: Pair, rel=False):
+    def moveto(self, dest: FloatPair, rel=False):
         dest_pt = (Point(dest) + self.current_pos) if rel else Point(dest)
         self.subpaths.append([dest_pt])
         self.current_pos = dest_pt
 
-    def lineto(self, dest: Pair, rel=False):
+    def lineto(self, dest: FloatPair, rel=False):
         dest_pt = (Point(dest) + self.current_pos) if rel else Point(dest)
         current_subpath = self.subpaths[-1]
         current_subpath.append(dest_pt)
         self.current_pos = dest_pt
 
-    def curveto(self, handle1: Pair, handle2: Pair, dest: Pair, rel=False):
+    def curveto(
+        self, handle1: FloatPair, handle2: FloatPair, dest: FloatPair, rel=False
+    ):
         p0 = self.current_pos
         p1 = (Point(handle1) + self.current_pos) if rel else Point(handle1)
         p2 = (Point(handle2) + self.current_pos) if rel else Point(handle2)
@@ -192,11 +173,6 @@ class DrawablePath(Drawable):
         fill = surface.cmap(self.style.fillcolor.rgba)
         stroke = surface.cmap(self.style.linecolor.rgba)
 
-        # skip if transparent
-        if not fill[-1] and not stroke[-1]:
-            print("skipped")
-            return
-
         for path in self.subpaths:
             # apply transforms to points and convert to tuple for drawing
             path_tuple = [tuple(p.transform(transform)) for p in path]
@@ -210,21 +186,53 @@ class DrawablePath(Drawable):
                 surface.draw.polygon(path_tuple, fill=fill[:3], outline=stroke[:3])
             elif fill[-1]:
                 surface.draw.polygon(path_tuple, fill=fill[:3])
-            else:
+            elif stroke[-1]:
                 surface.draw.polygon(path_tuple, outline=stroke[:3])
+
+
+class DrawableEllipse(Drawable):
+    def __init__(self, elem_id: str):
+        super().__init__(elem_id)
+
+        self.center = Point((0, 0))
+        self.radius = Point((0, 0))
+
+    def setup(self, center: FloatPair = (0, 0), radius: FloatPair = (0, 0)):
+        self.center = Point(center)
+        self.radius = Point(radius)
+
+    def draw(self, surface: RenderSurface, transform=Transform()):
+        fill = surface.cmap(self.style.fillcolor.rgba)
+        stroke = surface.cmap(self.style.linecolor.rgba)
+
+        t_center = self.center.transform(transform)
+        t_radius = self.radius.transform(transform)
+
+        bb_min = list(t_center + t_radius)
+        bb_max = list(t_center - t_radius)
+        ellipse_bbox = bb_min + bb_max
+
+        if fill[-1] and stroke[-1]:
+            surface.draw.ellipse(ellipse_bbox, fill[:3], stroke[:3], width=5)
+        elif fill[-1]:
+            surface.draw.ellipse(ellipse_bbox, fill=fill[:3], width=5)
+        elif stroke[-1]:
+            surface.draw.ellipse(ellipse_bbox, outline=stroke[:3], width=5)
 
 
 # OBJECT STORAGE
 # =======================================
 class DrawableObjectStore:
-    def __init__(self):
+    def __init__(self, canvas: IntPair):
+
+        self.canvas_size = canvas
 
         # drawables stored in drawing order
-        self._objects = []
+        self._objects: List[Drawable] = []
 
         # stored in dict for lookup by id
         # contains objects with id
-        self._named = {}
+        self._named: Dict[str, Drawable] = {}
 
     def __getitem__(self, key):
         return self._objects[key]
@@ -245,14 +253,24 @@ class DrawableObjectStore:
             raise ValueError("id already defined")
         elif elem_id:
             self._named[elem_id] = obj
-        
+
         # append as renderable if render=True
         if render:
             self._objects.append(obj)
 
     def get(self, elem_id: str) -> Drawable:
-        return self._named.get(elem_id)
+        return self._named[elem_id]
 
     def clear(self):
         self._objects.clear()
         self._named.clear()
+
+    def get_transform(self, out_bbox: BBox) -> Transform:
+        scale_y = out_bbox.height / self.canvas_size[1]
+        scale_x = out_bbox.width / self.canvas_size[0]
+        return Transform(out_bbox.offset, (scale_x, scale_y))
+
+    def draw_all(self, surface: RenderSurface, transform=Transform()):
+        for drw in self._objects:
+            print(drw)
+            drw.draw(surface, transform)

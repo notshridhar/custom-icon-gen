@@ -35,7 +35,6 @@ class TestA2_Point(unittest.TestCase):
         # __iter__
         a = vector.Point((10, 20))
         self.assertTrue(tuple(a) == (10, 20))
-        self.assertTrue(len(a) == 2)
 
         # __eq__
         a = vector.Point((10, 20))
@@ -95,7 +94,6 @@ class TestA3_BBox(unittest.TestCase):
         # iterable
         b = vector.BBox((10, 20, 30, 40))
         self.assertTrue(tuple(b) == (10, 20, 30, 40))
-        self.assertTrue(len(b) == 4)
 
     def test_c(self):
         # operations
@@ -125,47 +123,18 @@ class TestB1_RenderSurface(unittest.TestCase):
         self.assertTrue(r.cmap("#f0f0f0") == "#f0f0f0")
 
 
-class TestB2_1_Drawable(unittest.TestCase):
+class TestB2_1_DrawablePath(unittest.TestCase):
     def test_a(self):
         # constructor
         # -----------
-        s = vector.DrawableStyle()
-        d = vector.Drawable((10, 30), "e12", s)
-
-    def test_b(self):
-        # operations
-        # ----------
-
-        # copy
-        s = vector.DrawableStyle({"fill": "#fff"})
-        a = vector.Drawable((10, 30), "e12", s)
-        b = a.copy()
-        b.elem_id = "b13"
-        self.assertTrue(a.elem_id == "e12" and b.elem_id == "b13")
-
-        # transform
-        s = vector.DrawableStyle({"fill": "#fff"})
-        a = vector.Drawable((10, 30), "e12", s)
-        b = vector.BBox((10, 10, 15, 60))
-        t = a.get_transform(b)
-        self.assertIsInstance(t, vector.Transform)
-        self.assertTrue(t.translate == (10, 10) and t.scale == (1.5, 2))
-
-
-class TestB2_2_DrawablePath(unittest.TestCase):
-    def test_a(self):
-        # constructor
-        # -----------
-        s = vector.DrawableStyle()
-        d = vector.DrawablePath((10, 30), "e12", s)
+        d = vector.DrawablePath("e12")
 
     def test_b(self):
         # operations
         # ----------
 
         # absolute system
-        s = vector.DrawableStyle()
-        d = vector.DrawablePath((100, 200), "e12", s)
+        d = vector.DrawablePath("e12")
         d.moveto((10, 20), rel=False)
         self.assertTrue(d.current_pos == (10, 20))
         self.assertTrue(len(d.subpaths[-1]) == 1)
@@ -202,27 +171,27 @@ class TestB3_DrawableObjectStore(unittest.TestCase):
     def test_a(self):
         # constructor
         # -----------
-        o = vector.DrawableObjectStore()
-    
+        o = vector.DrawableObjectStore((100, 200))
+
     def test_b(self):
         # special operations
         # ------------------
         # __len__, __iter__, __getitem__
-        o = vector.DrawableObjectStore()
-        o.append("a1", vector.Drawable((10, 20), "a1", vector.DrawableStyle()))
-        o.append("a2", vector.DrawablePath((10, 20), "a2", vector.DrawableStyle()))
+        o = vector.DrawableObjectStore((100, 200))
+        o.append("a1", vector.DrawablePath("a1"))
+        o.append("a2", vector.DrawablePath("a2"))
         self.assertTrue(len(o) == len(list(o)) == 2)
         self.assertTrue(o[0].elem_id == "a1")
-    
+
     def test_c(self):
         # operation
         # ---------
 
         # create, create_draft, get_draft
-        o = vector.DrawableObjectStore()
-        a1 = vector.Drawable((10, 20), "a1", vector.DrawableStyle())
-        a2 = vector.Drawable((20, 30), "a2", vector.DrawableStyle())
-        a3 = vector.Drawable((30, 30), "a3", vector.DrawableStyle())
+        o = vector.DrawableObjectStore((100, 100))
+        a1 = vector.DrawablePath("a1")
+        a2 = vector.DrawablePath("a2")
+        a3 = vector.DrawablePath("a3")
 
         o.append("a1", a1, render=True)
         o.append("a2", a2, render=False)
@@ -230,13 +199,13 @@ class TestB3_DrawableObjectStore(unittest.TestCase):
         o.append("a3", a3, render=True)
 
         self.assertTrue([i.elem_id for i in o] == ["a1", "a3"])
-        self.assertTrue(o.get("a3").elem_id == "a3")
-        self.assertTrue(o.get("a4") == None)
+        self.assertTrue(o.get("d3").elem_id == "a3")
+        self.assertRaises(KeyError, o.get, "a4")
 
         # clear
         o.clear()
         self.assertTrue(len(o) == 0)
-        self.assertTrue(o.get("a1") == None)
+        self.assertRaises(KeyError, o.get, "a1")
 
 
 def main():
