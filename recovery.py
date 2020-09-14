@@ -73,10 +73,10 @@ elif args.command == "restore":
 
             if src_exists and dst_exists:
                 if not args.dry_run:
-                    shutil.copy(icon_path, dest_path)
+                    shutil.copy(src_path, dst_path)
                 icon_str = f"{pack_name}/{icon_name}.icns"
                 print(icon_str, " " * (30 - len(icon_str)), "...restored")
-            
+
             prog = int((i + 1) * 20 / len(mac_packages))
             prog_bar = "=" * prog + " " * (20 - prog)
             print(f"[{prog_bar}] {prog*5}%", end="\r")

@@ -4,13 +4,10 @@
 source path-to-env/bin/activate
 
 # type checking
-mypy icongen svg2png
+mypy .
 
 # unit tests
 python -m unittest discover -s tests
-
-# actual convertion test
-python test_convert.py
 
 # formatting
 black --check .

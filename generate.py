@@ -46,7 +46,7 @@ else:
     c = input("do you want to continue? [y/N] ")
     if c.lower() != "y":
         exit("abort.")
-    print("-"*30)
+    print("-" * 30)
 
 
 if platform.system() == "Darwin":
@@ -95,7 +95,7 @@ if platform.system() == "Darwin":
         # move icns to source
         shutil.move(tempicn, dst_path)
         output_str = pack_name + ":" + dst_icon
-        print(output_str, " "*(30 - len(output_str)))
+        print(output_str, " " * (30 - len(output_str)))
 
         # progress bar
         prog = int((i + 1) * 20 / len(mac_packages))
