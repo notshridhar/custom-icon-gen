@@ -196,7 +196,7 @@ class DrawableEllipse(Drawable):
 
         self.center = Point((0, 0))
         self.radius = Point((0, 0))
-    
+
     def set_center(self, center: Union[int, float, tuple] = 0):
         if isinstance(center, tuple):
             c_x, c_y = center
@@ -204,7 +204,7 @@ class DrawableEllipse(Drawable):
         elif isinstance(center, int) or isinstance(center, float):
             c_f = float(center)
             self.center = Point((c_f, c_f))
-        
+
     def set_radius(self, radius: Union[int, float, tuple] = 0):
         if isinstance(radius, tuple):
             r_x, r_y = radius
@@ -284,5 +284,4 @@ class DrawableObjectStore:
 
     def draw_all(self, surface: RenderSurface, transform=Transform()):
         for drw in self._objects:
-            print(drw)
             drw.draw(surface, transform)
