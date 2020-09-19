@@ -197,9 +197,21 @@ class DrawableEllipse(Drawable):
         self.center = Point((0, 0))
         self.radius = Point((0, 0))
 
-    def setup(self, center: FloatPair = (0, 0), radius: FloatPair = (0, 0)):
-        self.center = Point(center)
-        self.radius = Point(radius)
+    def set_center(self, center: Union[int, float, tuple] = 0):
+        if isinstance(center, tuple):
+            c_x, c_y = center
+            self.center = Point((c_x, c_y))
+        elif isinstance(center, int) or isinstance(center, float):
+            c_f = float(center)
+            self.center = Point((c_f, c_f))
+
+    def set_radius(self, radius: Union[int, float, tuple] = 0):
+        if isinstance(radius, tuple):
+            r_x, r_y = radius
+            self.center = Point((r_x, r_y))
+        elif isinstance(radius, int) or isinstance(radius, float):
+            r_f = float(radius)
+            self.radius = Point((r_f, r_f))
 
     def draw(self, surface: RenderSurface, transform=Transform()):
         fill = surface.cmap(self.style.fillcolor.rgba)
@@ -208,8 +220,8 @@ class DrawableEllipse(Drawable):
         t_center = self.center.transform(transform)
         t_radius = self.radius.transform(transform)
 
-        bb_min = list(t_center + t_radius)
-        bb_max = list(t_center - t_radius)
+        bb_min = list(t_center - t_radius)
+        bb_max = list(t_center + t_radius)
         ellipse_bbox = bb_min + bb_max
 
         if fill[-1] and stroke[-1]:
@@ -272,5 +284,4 @@ class DrawableObjectStore:
 
     def draw_all(self, surface: RenderSurface, transform=Transform()):
         for drw in self._objects:
-            print(drw)
             drw.draw(surface, transform)
