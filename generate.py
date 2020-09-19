@@ -51,18 +51,23 @@ else:
 
 if platform.system() == "Darwin":
 
-    # temporary playground
-    tempfol = f"temp_folder"
-    tempimg = f"./{tempfol}/temp.png"
-    tempico = f"./{tempfol}/temp.iconset"
-    tempicn = f"./{tempfol}/temp.icns"
+    # output dir configuration
+    svgfol = f"./icons/svg"
+    outfol = f"./output"
+    outimg = f"{outfol}/png"
+    outico = f"{outfol}/icns"
 
-    os.makedirs(tempfol, exist_ok=True)
+    os.makedirs(outfol, exist_ok=True)
+    os.makedirs(outimg, exist_ok=True)
+    os.makedirs(outico, exist_ok=True)
 
     for i, pack_meta in enumerate(mac_packages.items()):
         pack_info, svg_name = pack_meta
         pack_name, dst_icon = pack_info.split(":")
-        svg_path = f"./icons/svg/{svg_name}.svg"
+        png_path = f"{outimg}/{svg_name}.png"
+        ico_path = f"{outico}/{svg_name}.iconset"
+        icn_path = f"{outico}/{svg_name}.icns"
+        svg_path = f"{svgfol}/{svg_name}.svg"
         dst_path = f"/Applications/{pack_name}.app/Contents/Resources/{dst_icon}.icns"
 
         # skip if destination package does not exists
@@ -71,13 +76,15 @@ if platform.system() == "Darwin":
 
         # render highest res image
         image = minimal_round.render_from_svg(svg_path, (1024, 1024))
-        image.save(tempimg, (512, 512))
+        image.save(png_path, (512, 512))
 
-        # create iconset
-        os.makedirs(tempico, exist_ok=False)
+        # create iconset folder
+        if os.path.exists(ico_path):
+            shutil.rmtree(ico_path)
+        os.makedirs(ico_path)
 
         # resize to different resolutions
-        sips_cmd = f"sips -z <r1> {tempimg} --out {tempico}/icon_<r2>.png"
+        sips_cmd = f"sips -z <r1> {png_path} --out {ico_path}/icon_<r2>.png"
         for res in [16, 32, 128, 256]:
             # 1x res
             command = sips_cmd.replace("<r1>", f"{res} {res}")
@@ -89,22 +96,21 @@ if platform.system() == "Darwin":
             subprocess.call(command.split(), stdout=subprocess.DEVNULL)
 
         # create icns file
-        iconutil_cmd = f"iconutil -c icns {tempico}"
+        iconutil_cmd = f"iconutil -c icns {ico_path}"
         subprocess.call(iconutil_cmd.split(), stdout=subprocess.DEVNULL)
+        assert os.path.exists(icn_path), "icns not created"
 
         # move icns to source
-        shutil.move(tempicn, dst_path)
+        shutil.move(icn_path, dst_path)
         output_str = pack_name + ":" + dst_icon
-        print(output_str, " " * (30 - len(output_str)))
+        print(output_str, " "* (30 - len(output_str)))
 
         # progress bar
         prog = int((i + 1) * 20 / len(mac_packages))
         prog_bar = "=" * prog + " " * (20 - prog)
         print(f"[{prog_bar}] {prog*5}%", end="\r")
 
-        # cleanup temp
-        shutil.rmtree(tempimg, ignore_errors=True)
-        shutil.rmtree(tempico, ignore_errors=True)
-        shutil.rmtree(tempicn, ignore_errors=True)
-
-    shutil.rmtree(tempfol)
+        # cleanup iconset
+        shutil.rmtree(ico_path, ignore_errors=True)
+    
+    shutil.rmtree(outico, ignore_errors=True)
