@@ -2,8 +2,55 @@
 # ----------------------------
 
 
+import random
+
 from svg2png import parser
 from svg2png import vector
+
+
+CURRENT_PALETTE = {}
+PALETTES = [
+    {
+        "name": "blue",
+        "primary": "#1e88e5",
+        "secondary": "#ffffff",
+        "extra1": "#d81b60", # magenta
+        "extra2": "#fb8c00", # yellow
+        "extra3": "#7cb342", # green
+    },
+    {
+        "name": "orange",
+        "primary": "#fb8c00",
+        "secondary": "#ffffff",
+        "extra1": "#d81b60", # magenta
+        "extra2": "#1e88e5", # blue
+        "extra3": "#7cb342", # green
+    },
+    {
+        "name": "green",
+        "primary": "#689f38",
+        "secondary": "#ffffff",
+        "extra1": "#d81b60", # magenta
+        "extra2": "#1e88e5", # blue
+        "extra3": "#ffee58", # yellow
+    },
+    {
+        "name": "purple",
+        "primary": "#7b1fa2",
+        "secondary": "#ffffff",
+        "extra1": "#ff5722", # red
+        "extra2": "#7cb342", # green
+        "extra3": "#ffee58", # yellow
+    },
+    {
+        "name": "brown",
+        "primary": "#6d4c41",
+        "secondary": "#ffffff",
+        "extra1": "#4dd0e1", # cyan
+        "extra2": "#fb8c00", # yellow
+        "extra3": "#7cb342", # green
+    },
+]
 
 
 def color_map(in_color: vector.RGBATuple) -> vector.RGBATuple:
@@ -17,26 +64,32 @@ def color_map(in_color: vector.RGBATuple) -> vector.RGBATuple:
     in_rgb = in_color[:3]
     in_opa = in_color[-1]
 
-    primary_color = (239, 83, 80)
-    secondary_color = (255, 255, 255)
+    palette = CURRENT_PALETTE
 
     # rules
     # -------------
     # black - white -> primary - secondary
-    # red, green, blue -> color_palette
+    # red, green, blue -> extra colors
 
     # grayscale spectrum -> primary <-> secondary
     if len(set(in_rgb)) == 1:
         factor = in_rgb[0] / 255
         slider = lambda x, y: int((1 - factor) * x + factor * y)
-        zip_cols = zip(primary_color, secondary_color)
-        final_rgb = [slider(p, s) for p, s in zip_cols]
-        f_r, f_g, f_b = final_rgb
-        return (f_r, f_g, f_b, in_opa)
+        prm_rgba = vector.parse_color(palette["primary"], in_opa)
+        sec_rgba = vector.parse_color(palette["secondary"], in_opa)
+        return tuple(slider(p, s) for p, s in zip(prm_rgba, sec_rgba))
 
-    # pure red -> palette 1
+    # pure red -> extra 1
     if in_rgb == (255, 0, 0):
-        return (255, 207, 0, in_opa)
+        return vector.parse_color(palette["extra1"], in_opa)
+    
+    # pure green -> extra 2
+    if in_rgb == (0, 255, 0):
+        return vector.parse_color(palette["extra2"], in_opa)
+
+    # pure blue -> extra 3
+    if in_rgb == (0, 0, 255):
+        return vector.parse_color(palette["extra3"], in_opa)
 
     # no conditions met -> return original color
     return in_color
@@ -44,6 +97,8 @@ def color_map(in_color: vector.RGBATuple) -> vector.RGBATuple:
 
 def render_from_svg(in_file: str, render_size: vector.IntPair) -> vector.RenderSurface:
     """ Create a custom styled png from svg file """
+
+    global CURRENT_PALETTE
 
     # DESIGN CORE PARAMETERS
     # ----------------------
@@ -55,6 +110,7 @@ def render_from_svg(in_file: str, render_size: vector.IntPair) -> vector.RenderS
     surface_bb = vector.BBox(render_size)
 
     # color map to create dynamic colours from rules
+    CURRENT_PALETTE = random.choice(PALETTES)
     surface.set_color_map(color_map)
 
     # background circle

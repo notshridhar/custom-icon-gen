@@ -14,11 +14,12 @@ if platform.system() not in ["Darwin"]:
 
 
 parser = argparse.ArgumentParser("icongen")
+parser.add_argument("--replace", action="store_true", help="replace system files [sudo]")
 args = parser.parse_args()
 
 
 # check permission
-if os.geteuid() != 0:
+if args.replace and os.geteuid() != 0:
     print("You need to have root privileges to run this script")
     exit("Please try again using sudo")
 
@@ -107,7 +108,7 @@ def darwin_generate_all():
         dest_path = iconpaths.darwin_decode_path(pack_info)
 
         # skip if destination path doesnt exist
-        if not dest_path:
+        if not os.path.exists(dest_path):
             continue
 
         svg_path = f"./icons/svg/{svg_name}.svg"
@@ -122,7 +123,8 @@ def darwin_generate_all():
         darwin_create_icns(png_path, icn_path)
         
         # replace icns
-        shutil.move(icn_path, dest_path)
+        if args.replace:
+            shutil.move(icn_path, dest_path)
         
         # progress bar
         print(pack_info, " "* (30 - len(pack_info)))
