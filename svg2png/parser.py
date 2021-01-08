@@ -1,6 +1,7 @@
 # Parser Module
 # -----------------
-# Contains tools for parsing svg format and other strings
+# Contains tools for parsing svg files
+# Limited tag support
 
 
 from typing import Optional, Union
@@ -15,7 +16,6 @@ from . import vector
 
 # type hints
 Element = elemtree.Element
-IntPair = Tuple[int, int]
 FloatPair = Tuple[float, float]
 
 
@@ -236,16 +236,6 @@ def svg_drawable_handler(elem: Element, prop: ElemProp) -> vector.Drawable:
         drw.style = prop.style.copy()
         parse_svg_path(elem.attrib["d"], drw)
 
-    # <ellipse>
-    elif elem.tag == "ellipse":
-        drw = vector.DrawableEllipse(elem_id)
-        drw.style = prop.style.copy()
-        cx = int(elem.attrib.get("cx", 0))
-        cy = int(elem.attrib.get("cy", 0))
-        rx = int(elem.attrib.get("rx", 0))
-        ry = int(elem.attrib.get("ry", 0))
-        drw.setup((cx, cy), (rx, ry))
-
     return drw
 
 
@@ -265,7 +255,7 @@ def parse_svg_file(filename: str) -> vector.DrawableObjectStore:
 
     # tag list
     grouping_tags = ["svg", "defs", "g"]
-    drawable_tags = ["path", "ellipse"]
+    drawable_tags = ["path"]
 
     # depth first tree iterator
     iterator = TreeIter(root)

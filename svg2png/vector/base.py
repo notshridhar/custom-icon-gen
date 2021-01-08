@@ -87,15 +87,6 @@ class BBox:
     - box - left, top, width, height
     - iterable - can be cast to tuple or list
     - indexable (view only)
-
-    Usage
-    ------------
-    >>> BBox((10, 10, 40, 30))
-        <bbox (10, 10, 40, 30)>
-    
-    >>> BBox((30, 40))
-        <bbox (0, 0, 30, 40)>
-
     """
 
     def __init__(self, box: tuple):

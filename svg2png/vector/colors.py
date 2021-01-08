@@ -1,8 +1,10 @@
-from typing import Any, Tuple
+from typing import cast, Tuple, Union, Iterable
 import re
 
 
+Number = Union[int, float]
 RGBATuple = Tuple[int, int, int, int]
+ColorOptions = Union[str, Number, Iterable]
 
 
 def parse_color(color_str: str, opacity: int) -> RGBATuple:
@@ -12,12 +14,19 @@ def parse_color(color_str: str, opacity: int) -> RGBATuple:
     Fallback - transparent (0, 0, 0, 0)
     Returns tuple
     """
-
-    # default
     a = opacity
 
     # lower case for simplicity
     color_str = color_str.lower()
+
+    # named colors
+    named_colors = {
+        "white": (255, 255, 255, a),
+        "black": (0, 0, 0, a),
+        "transparent": (0, 0, 0, 0),
+    }
+    if color_str in named_colors:
+        return named_colors[color_str]
 
     # 3 digit hex code
     if re.match("#[a-f0-9]{3}$", color_str):
@@ -49,14 +58,14 @@ def parse_color(color_str: str, opacity: int) -> RGBATuple:
         a = int(color_str[7:9], 16)
         return (r, g, b, a)
 
-    # fallback
-    return (0, 0, 0, 0)
+    raise ValueError(f"cannot parse color - {color_str}")
 
 
 class Color:
-    def __init__(self, col: Any = None, opacity: float = 1.0):
+    def __init__(self, col: ColorOptions = "transparent", opacity: Number = 1.0):
         """
         Construct color object from identifiers
+        -------------------
 
         If no opacity is given, defaults to completely opaque
         If no color given, defaults to completely transparent
@@ -67,45 +76,30 @@ class Color:
         >>> Color("#124")
         """
 
-        # default - transparent (black)
-        rgba = (0, 0, 0, 0)
         alpha = int(opacity * 255)
 
-        # nothing provided
-        if not col:
+        # try to parse color as string
+        try:
+            self.r, self.g, self.b, self.a = parse_color(cast(str, col), alpha)
+            return
+        except ValueError:
             pass
 
-        # string - parse color
-        elif isinstance(col, str):
-            rgba = parse_color(col, alpha)
+        # try to unpack
+        try:
+            self.r, self.g, self.b = cast(tuple, col)
+            self.a = alpha
+            return
+        except ValueError:
+            pass
 
-        # rgb given as tuple or list
-        elif isinstance(col, list) or isinstance(col, tuple):
-            if len(col) == 3:
-                r, g, b = map(int, col)
-                rgba = (r, g, b, alpha)
-            elif len(col) == 4:
-                r, g, b, a = map(int, col)
-                rgba = (r, g, b, a)
-
-        # grayscale factor given
-        elif isinstance(col, int) or isinstance(col, float):
+        # grayscale
+        if isinstance(col, int) or isinstance(col, float):
             fac = int(col)
-            rgba = (fac, fac, fac, alpha)
+            self.r, self.g, self.b, self.a = fac, fac, fac, alpha
+            return
 
-        # cannot decode
-        else:
-            raise TypeError("Invalid color constructor", col)
-
-        # construct finally
-        self.rgba = rgba
-        self.r, self.g, self.b, self.a = rgba
-
-    def __getitem__(self, key):
-        return self.rgba[key]
-
-    def __iter__(self):
-        return iter(self.rgba)
+        raise ValueError(f"Cannot decode color - {col}")
 
     def __str__(self):
         hex_str = "#"
@@ -125,8 +119,9 @@ class Color:
         return hex_str
 
     @property
+    def rgba(self) -> RGBATuple:
+        return (self.r, self.g, self.b, self.a)
+
+    @property
     def opacity(self) -> float:
         return self.a / 255.0
-
-
-# def blend_color(color1: Color, color2: Color, ratio: float) -> 

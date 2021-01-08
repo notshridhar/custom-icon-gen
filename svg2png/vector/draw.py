@@ -4,10 +4,11 @@
 
 
 from typing import Optional, Union
-from typing import Tuple, List, Dict, Callable
+from typing import Tuple, List, Dict
 
 from copy import deepcopy
 from abc import abstractmethod, ABC
+
 from PIL import Image, ImageDraw  # type: ignore
 
 from .base import Point, Transform, BBox
@@ -15,12 +16,13 @@ from .colors import Color
 
 
 # type hints
+Number = Union[int, float]
+Pair = Tuple[Number, Number]
 IntPair = Tuple[int, int]
-FloatPair = Tuple[float, float]
 
 
 # SURFACE
-# =======================================
+# =====================
 class RenderSurface:
     """
     Wrapper class around PIL.Image
@@ -31,16 +33,6 @@ class RenderSurface:
     def __init__(self, size: IntPair):
         self.image = Image.new("RGBA", size)
         self.draw = ImageDraw.Draw(self.image)
-
-        # color mapping function (callable)
-        self.cmap = lambda x: x
-
-    def set_color_map(self, color_map: Callable):
-        """
-        Set function to generate output color from rules
-        color_map(str) -> str
-        """
-        self.cmap = color_map
 
     def save(self, filename: str, final_size: Optional[IntPair] = None):
         """
@@ -55,7 +47,7 @@ class RenderSurface:
 
 
 # DRAWABLE OBJECTS
-# =======================================
+# =====================
 class DrawableStyle:
     def __init__(self, attrib: dict = {}):
 
@@ -123,36 +115,33 @@ class DrawablePath(Drawable):
         # state
         self.current_pos = Point((0, 0))
 
-    def moveto(self, dest: FloatPair, rel=False):
+    def moveto(self, dest: Pair, rel=False):
         dest_pt = (Point(dest) + self.current_pos) if rel else Point(dest)
         self.subpaths.append([dest_pt])
         self.current_pos = dest_pt
 
-    def lineto(self, dest: FloatPair, rel=False):
+    def lineto(self, dest: Pair, rel=False):
         dest_pt = (Point(dest) + self.current_pos) if rel else Point(dest)
         current_subpath = self.subpaths[-1]
         current_subpath.append(dest_pt)
         self.current_pos = dest_pt
 
-    def curveto(
-        self, handle1: FloatPair, handle2: FloatPair, dest: FloatPair, rel=False
-    ):
+    def curveto(self, handle1: Pair, handle2: Pair, dest: Pair, rel=False):
         p0 = self.current_pos
         p1 = (Point(handle1) + self.current_pos) if rel else Point(handle1)
         p2 = (Point(handle2) + self.current_pos) if rel else Point(handle2)
         p3 = (Point(dest) + self.current_pos) if rel else Point(dest)
 
-        t = 0.1
+        resolution = 10
+        params = (i / resolution for i in range(1, resolution + 1))
 
-        while t <= 1:
+        for t in params:
             c = [(1 - t) ** 3, 3 * (1 - t) ** 2 * t, 3 * (1 - t) * t ** 2, t ** 3]
             bx = c[0] * p0.x + c[1] * p1.x + c[2] * p2.x + c[3] * p3.x
             by = c[0] * p0.y + c[1] * p1.y + c[2] * p2.y + c[3] * p3.y
 
             current_path = self.subpaths[-1]
             current_path.append(Point((bx, by)))
-
-            t += 0.1
 
         self.current_pos = p3
 
@@ -170,8 +159,8 @@ class DrawablePath(Drawable):
         - transform (Transform)     - transforms to apply while drawing
         """
 
-        fill = surface.cmap(self.style.fillcolor.rgba)
-        stroke = surface.cmap(self.style.linecolor.rgba)
+        fill = self.style.fillcolor.rgba
+        stroke = self.style.linecolor.rgba
 
         for path in self.subpaths:
             # apply transforms to points and convert to tuple for drawing
@@ -181,59 +170,13 @@ class DrawablePath(Drawable):
             if len(path_tuple) < 2:
                 continue
 
-            # binary transparency
-            if fill[-1] and stroke[-1]:
-                surface.draw.polygon(path_tuple, fill=fill[:3], outline=stroke[:3])
-            elif fill[-1]:
+            # ignore stroke, only opaque fill
+            if fill[-1]:
                 surface.draw.polygon(path_tuple, fill=fill[:3])
-            elif stroke[-1]:
-                surface.draw.polygon(path_tuple, outline=stroke[:3])
-
-
-class DrawableEllipse(Drawable):
-    def __init__(self, elem_id: str):
-        super().__init__(elem_id)
-
-        self.center = Point((0, 0))
-        self.radius = Point((0, 0))
-
-    def set_center(self, center: Union[int, float, tuple] = 0):
-        if isinstance(center, tuple):
-            c_x, c_y = center
-            self.center = Point((c_x, c_y))
-        elif isinstance(center, int) or isinstance(center, float):
-            c_f = float(center)
-            self.center = Point((c_f, c_f))
-
-    def set_radius(self, radius: Union[int, float, tuple] = 0):
-        if isinstance(radius, tuple):
-            r_x, r_y = radius
-            self.center = Point((r_x, r_y))
-        elif isinstance(radius, int) or isinstance(radius, float):
-            r_f = float(radius)
-            self.radius = Point((r_f, r_f))
-
-    def draw(self, surface: RenderSurface, transform=Transform()):
-        fill = surface.cmap(self.style.fillcolor.rgba)
-        stroke = surface.cmap(self.style.linecolor.rgba)
-
-        t_center = self.center.transform(transform)
-        t_radius = self.radius.transform(transform)
-
-        bb_min = list(t_center - t_radius)
-        bb_max = list(t_center + t_radius)
-        ellipse_bbox = bb_min + bb_max
-
-        if fill[-1] and stroke[-1]:
-            surface.draw.ellipse(ellipse_bbox, fill[:3], stroke[:3], width=5)
-        elif fill[-1]:
-            surface.draw.ellipse(ellipse_bbox, fill=fill[:3], width=5)
-        elif stroke[-1]:
-            surface.draw.ellipse(ellipse_bbox, outline=stroke[:3], width=5)
 
 
 # OBJECT STORAGE
-# =======================================
+# =====================
 class DrawableObjectStore:
     def __init__(self, canvas: IntPair):
 

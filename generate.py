@@ -14,7 +14,9 @@ if platform.system() not in ["Darwin"]:
 
 
 parser = argparse.ArgumentParser("icongen")
-parser.add_argument("--replace", action="store_true", help="replace system files [sudo]")
+parser.add_argument(
+    "--replace", action="store_true", help="replace system files [sudo]"
+)
 args = parser.parse_args()
 
 
@@ -22,40 +24,6 @@ args = parser.parse_args()
 if args.replace and os.geteuid() != 0:
     print("You need to have root privileges to run this script")
     exit("Please try again using sudo")
-
-
-def darwin_check_backup():
-    """
-    Check if all icons are backed up
-    --------------------------------
-    Returns if backed up or prompt is overriden
-    Exits if not backed up
-    """
-
-    # check if all icons are backed up
-    not_backed = 0
-    for i, pack_info in enumerate(iconpaths.darwin_get_store()):
-        src_path = pack_info[0]
-        back_name = "backup_" + src_path.split("/")[-1]
-        back_path = "/".join(src_path.split("/")[:-1]) + "/" + back_name
-
-        if os.path.exists(src_path) and not os.path.exists(back_path):
-            not_backed += 1
-
-    # backup reminder / confirmation
-    if not_backed:
-        print(not_backed, "icons are not backed up ...")
-        print("this operation will replace original icons")
-        print("use recovery tool to backup and restore icons")
-        c = input("do you want to continue anyways? [y/N] ")
-        if c.lower() != "y":
-            exit("abort.")
-    else:
-        print("this operation will replace original icons")
-        c = input("do you want to continue? [y/N] ")
-        if c.lower() != "y":
-            exit("abort.")
-        print("-" * 30)
 
 
 def darwin_create_icns(png_path: str, icn_path: str):
@@ -101,12 +69,12 @@ def darwin_generate_all():
     # create output dirs
     orig_umask = os.umask(0)
     os.makedirs(outimg, exist_ok=True)
-    os.makedirs(outico, exist_ok=True)
+    # os.makedirs(outico, exist_ok=True)
     os.umask(orig_umask)
 
     icon_list = iconpaths.darwin_get_store()
     for i, pack_meta in enumerate(icon_list):
-        
+
         dest_path, svg_name = pack_meta
 
         # skip if destination path doesnt exist
@@ -116,24 +84,23 @@ def darwin_generate_all():
         svg_path = f"./icons/svg/{svg_name}.svg"
         png_path = f"{outimg}/{svg_name}.png"
         icn_path = f"{outico}/{svg_name}.icns"
-        
-        # render highest res image
-        image = minimal_round.render_from_svg(svg_path, (1024, 1024))
-        image.save(png_path, (512, 512))
 
-        # create icns file from png
-        darwin_create_icns(png_path, icn_path)
-        
-        # replace icns
+        # render highest res image
+        if True or not os.path.isfile(svg_path):
+            image = minimal_round.render_from_svg(svg_path, (512, 512))
+            image.save(png_path, (256, 256))
+
+        # create and replace icns
         if args.replace:
+            darwin_create_icns(png_path, icn_path)
             shutil.move(icn_path, dest_path)
-        
+
         # progress bar
         print(dest_path, " " * (40 - len(dest_path)))
         prog = int((i + 1) * 20 / len(icon_list))
         prog_bar = "=" * prog + " " * (20 - prog)
         print(f"[{prog_bar}] {prog*5}%", end="\r")
-    
+
     # remove icns if empty
     try:
         os.rmdir(outico)
@@ -143,4 +110,3 @@ def darwin_generate_all():
 
 if platform.system() == "Darwin":
     darwin_generate_all()
-    
