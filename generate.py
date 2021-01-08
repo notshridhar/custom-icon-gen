@@ -8,7 +8,7 @@ from icongen import iconpaths
 from icongen import minimal_round
 
 
-# check platform
+# check platform for early fail
 if platform.system() not in ["Darwin"]:
     exit("this platform is not supported")
 
@@ -34,8 +34,8 @@ def darwin_check_backup():
 
     # check if all icons are backed up
     not_backed = 0
-    for i, pack_info in enumerate(iconpaths.darwin_packages.items()):
-        src_path = iconpaths.darwin_decode_path(pack_info[0])
+    for i, pack_info in enumerate(iconpaths.darwin_get_store()):
+        src_path = pack_info[0]
         back_name = "backup_" + src_path.split("/")[-1]
         back_path = "/".join(src_path.split("/")[:-1]) + "/" + back_name
 
@@ -99,13 +99,15 @@ def darwin_generate_all():
     outico = f"./output/icns"
 
     # create output dirs
+    orig_umask = os.umask(0)
     os.makedirs(outimg, exist_ok=True)
     os.makedirs(outico, exist_ok=True)
+    os.umask(orig_umask)
 
-    for i, pack_meta in enumerate(iconpaths.darwin_packages.items()):
+    icon_list = iconpaths.darwin_get_store()
+    for i, pack_meta in enumerate(icon_list):
         
-        pack_info, svg_name = pack_meta
-        dest_path = iconpaths.darwin_decode_path(pack_info)
+        dest_path, svg_name = pack_meta
 
         # skip if destination path doesnt exist
         if not os.path.exists(dest_path):
@@ -127,12 +129,16 @@ def darwin_generate_all():
             shutil.move(icn_path, dest_path)
         
         # progress bar
-        print(pack_info, " "* (30 - len(pack_info)))
-        prog = int((i + 1) * 20 / len(iconpaths.darwin_packages))
+        print(dest_path, " " * (40 - len(dest_path)))
+        prog = int((i + 1) * 20 / len(icon_list))
         prog_bar = "=" * prog + " " * (20 - prog)
         print(f"[{prog_bar}] {prog*5}%", end="\r")
     
-    shutil.rmtree(outico, ignore_errors=True)
+    # remove icns if empty
+    try:
+        os.rmdir(outico)
+    except OSError:
+        pass
 
 
 if platform.system() == "Darwin":

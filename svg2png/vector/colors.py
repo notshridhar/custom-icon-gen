@@ -1,4 +1,4 @@
-from typing import Any, Tuple, cast
+from typing import Any, Tuple
 import re
 
 
@@ -127,3 +127,6 @@ class Color:
     @property
     def opacity(self) -> float:
         return self.a / 255.0
+
+
+# def blend_color(color1: Color, color2: Color, ratio: float) -> 

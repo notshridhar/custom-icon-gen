@@ -1,6 +1,7 @@
 # Minimal Round Icon Generator
 # ----------------------------
 
+from typing import cast
 
 import random
 
@@ -8,47 +9,47 @@ from svg2png import parser
 from svg2png import vector
 
 
-CURRENT_PALETTE = {}
+CURRENT_PALETTE: dict = {}
 PALETTES = [
     {
         "name": "blue",
-        "primary": "#1e88e5",
+        "primary": "#42a5f5",
         "secondary": "#ffffff",
-        "extra1": "#d81b60", # magenta
-        "extra2": "#fb8c00", # yellow
-        "extra3": "#7cb342", # green
+        "extra1": "#ffd633", # yellow
+        "extra2": "#5fc27b", # cyan
+        "extra3": "#304fad", # indigo
     },
     {
         "name": "orange",
-        "primary": "#fb8c00",
+        "primary": "#ffbe0d",
         "secondary": "#ffffff",
-        "extra1": "#d81b60", # magenta
-        "extra2": "#1e88e5", # blue
-        "extra3": "#7cb342", # green
+        "extra1": "#fa5c00", # red
+        "extra2": "#00d0fa", # blue
+        "extra3": "#61ffbb", # green
     },
     {
         "name": "green",
-        "primary": "#689f38",
+        "primary": "#68cc16",
         "secondary": "#ffffff",
-        "extra1": "#d81b60", # magenta
-        "extra2": "#1e88e5", # blue
-        "extra3": "#ffee58", # yellow
+        "extra1": "#f5ff36", # yellow
+        "extra2": "#38e4ff", # blue
+        "extra3": "#ff8533", # orange
     },
     {
         "name": "purple",
-        "primary": "#7b1fa2",
+        "primary": "#a743cf",
         "secondary": "#ffffff",
-        "extra1": "#ff5722", # red
-        "extra2": "#7cb342", # green
-        "extra3": "#ffee58", # yellow
+        "extra1": "#f554cd", # pink
+        "extra2": "#54f5cf", # cyan
+        "extra3": "#daf554", # yellow
     },
     {
         "name": "brown",
-        "primary": "#6d4c41",
+        "primary": "#a86448",
         "secondary": "#ffffff",
-        "extra1": "#4dd0e1", # cyan
-        "extra2": "#fb8c00", # yellow
-        "extra3": "#7cb342", # green
+        "extra1": "#b5216d", # magenta
+        "extra2": "#d1c627", # yellow
+        "extra3": "#26d1b7", # cyan
     },
 ]
 
@@ -77,7 +78,8 @@ def color_map(in_color: vector.RGBATuple) -> vector.RGBATuple:
         slider = lambda x, y: int((1 - factor) * x + factor * y)
         prm_rgba = vector.parse_color(palette["primary"], in_opa)
         sec_rgba = vector.parse_color(palette["secondary"], in_opa)
-        return tuple(slider(p, s) for p, s in zip(prm_rgba, sec_rgba))
+        converted_rgba = tuple(slider(p, s) for p, s in zip(prm_rgba, sec_rgba))
+        return cast(vector.RGBATuple, converted_rgba)
 
     # pure red -> extra 1
     if in_rgb == (255, 0, 0):
@@ -114,10 +116,10 @@ def render_from_svg(in_file: str, render_size: vector.IntPair) -> vector.RenderS
     surface.set_color_map(color_map)
 
     # background circle
-    circle = vector.DrawableEllipse("")
+    circle = vector.DrawableEllipse("back-circle")
     circle.set_center(render_size[0] / 2)
     circle.set_radius(render_size[0] * circle_fraction / 2)
-    circle.style.fillcolor = vector.Color("#000000")
+    circle.style.fillcolor = vector.Color("#000")
     circle.draw(surface)
 
     # svg processing

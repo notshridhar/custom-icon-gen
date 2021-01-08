@@ -31,8 +31,9 @@ if not args.dry_run:
 
 
 if args.command == "backup":
-    for i, pack_info in enumerate(iconpaths.darwin_packages.items()):
-        src_path = iconpaths.darwin_decode_path(pack_info[0]) 
+    icon_list = iconpaths.darwin_get_store()
+    for i, pack_info in enumerate(icon_list):
+        src_path = pack_info[0]
         back_name = "backup_" + src_path.split("/")[-1]
         dest_path = "/".join(src_path.split("/")[:-1]) + "/" + back_name
 
@@ -43,14 +44,15 @@ if args.command == "backup":
             print(dest_path, " " * (30 - len(dest_path)), "...copied")
 
         # progress bar
-        prog = int((i + 1) * 20 / len(iconpaths.darwin_packages))
+        prog = int((i + 1) * 20 / len(icon_list))
         prog_bar = "=" * prog + " " * (20 - prog)
         print(f"[{prog_bar}] {prog*5}%", end="\r")
 
 elif args.command == "restore":
-    for i, pack_info in enumerate(iconpaths.darwin_packages.items()):
-        dest_path = iconpaths.darwin_decode_path(pack_info[0])
-        back_name = "backup_" + src_path.split("/")[-1]
+    icon_list = iconpaths.darwin_get_store()
+    for i, pack_info in enumerate(icon_list):
+        dest_path = pack_info[0]
+        back_name = "backup_" + dest_path.split("/")[-1]
         src_path = "/".join(dest_path.split("/")[:-1]) + "/" + back_name
 
         # copy only if src and dest both exist
@@ -60,13 +62,14 @@ elif args.command == "restore":
             print(dest_path, " " * (30 - len(dest_path)), "...restored")
 
         # progress bar
-        prog = int((i + 1) * 20 / len(iconpaths.darwin_packages))
+        prog = int((i + 1) * 20 / len(icon_list))
         prog_bar = "=" * prog + " " * (20 - prog)
         print(f"[{prog_bar}] {prog*5}%", end="\r")
 
 elif args.command == "cleanup":
-    for i, pack_info in enumerate(iconpaths.darwin_packages.items()):
-        dest_path = iconpaths.darwin_decode_path(pack_info[0])
+    icon_list = iconpaths.darwin_get_store()
+    for i, pack_info in enumerate(icon_list):
+        dest_path = pack_info[0]
         back_name = "backup_" + dest_path.split("/")[-1]
         back_path = "/".join(dest_path.split("/")[:-1]) + "/" + back_name
 
@@ -80,6 +83,6 @@ elif args.command == "cleanup":
             print(back_path, " " * (30 - len(back_path)), "...deleted")
 
         # progress bar
-        prog = int((i + 1) * 20 / len(iconpaths.darwin_packages))
+        prog = int((i + 1) * 20 / len(icon_list))
         prog_bar = "=" * prog + " " * (20 - prog)
         print(f"[{prog_bar}] {prog*5}%", end="\r")
