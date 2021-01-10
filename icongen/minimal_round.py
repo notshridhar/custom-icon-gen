@@ -1,131 +1,121 @@
 # Minimal Round Icon Generator
 # ----------------------------
 
+from typing import Optional, Tuple
 
 import random
+import math
+
+from PIL import Image  # type: ignore
+from PIL.Image import Image as PILImage  # type: ignore
 
 from svg2png import parser
-from svg2png import vector
+
+from .palette import PALETTES
+from .utils import Color, LinearGradient, BBox
+
+# type hints
+IntPair = Tuple[int, int]
+RGBATuple = Tuple[int, int, int, int]
 
 
-CURRENT_PALETTE = {}
-PALETTES = [
-    {
-        "name": "blue",
-        "primary": "#1e88e5",
-        "secondary": "#ffffff",
-        "extra1": "#d81b60", # magenta
-        "extra2": "#fb8c00", # yellow
-        "extra3": "#7cb342", # green
-    },
-    {
-        "name": "orange",
-        "primary": "#fb8c00",
-        "secondary": "#ffffff",
-        "extra1": "#d81b60", # magenta
-        "extra2": "#1e88e5", # blue
-        "extra3": "#7cb342", # green
-    },
-    {
-        "name": "green",
-        "primary": "#689f38",
-        "secondary": "#ffffff",
-        "extra1": "#d81b60", # magenta
-        "extra2": "#1e88e5", # blue
-        "extra3": "#ffee58", # yellow
-    },
-    {
-        "name": "purple",
-        "primary": "#7b1fa2",
-        "secondary": "#ffffff",
-        "extra1": "#ff5722", # red
-        "extra2": "#7cb342", # green
-        "extra3": "#ffee58", # yellow
-    },
-    {
-        "name": "brown",
-        "primary": "#6d4c41",
-        "secondary": "#ffffff",
-        "extra1": "#4dd0e1", # cyan
-        "extra2": "#fb8c00", # yellow
-        "extra3": "#7cb342", # green
-    },
-]
+CURRENT_PALETTE: dict = {}
 
 
-def color_map(in_color: vector.RGBATuple) -> vector.RGBATuple:
-    """
-    Color map function for renderer
-    -------------------------------
-    - takes in and outputs rgba tuple
-    """
+class ColorMap:
+    def __init__(self):
+        self.palette = CURRENT_PALETTE
+        self.extra1 = Color(self.palette["extra1"]).rgba
 
-    # divide rgb and alpha
-    in_rgb = in_color[:3]
-    in_opa = in_color[-1]
+    def remap(self, in_color: RGBATuple) -> RGBATuple:
+        """ Remap colours """
 
-    palette = CURRENT_PALETTE
+        # early stop for transparent
+        if not in_color[3]:
+            return in_color
 
-    # rules
-    # -------------
-    # black - white -> primary - secondary
-    # red, green, blue -> extra colors
+        # rule1: black <-> white => transparent <-> white
+        if in_color[0] == in_color[1] == in_color[2]:
+            f = in_color[0]
+            return (f, f, f, f)
 
-    # grayscale spectrum -> primary <-> secondary
-    if len(set(in_rgb)) == 1:
-        factor = in_rgb[0] / 255
-        slider = lambda x, y: int((1 - factor) * x + factor * y)
-        prm_rgba = vector.parse_color(palette["primary"], in_opa)
-        sec_rgba = vector.parse_color(palette["secondary"], in_opa)
-        return tuple(slider(p, s) for p, s in zip(prm_rgba, sec_rgba))
+        # rule2: pure r/g/b -> extra colors
+        if in_color[0] == 255 and in_color[1] == in_color[2] == 0:
+            return self.extra1
 
-    # pure red -> extra 1
-    if in_rgb == (255, 0, 0):
-        return vector.parse_color(palette["extra1"], in_opa)
-    
-    # pure green -> extra 2
-    if in_rgb == (0, 255, 0):
-        return vector.parse_color(palette["extra2"], in_opa)
-
-    # pure blue -> extra 3
-    if in_rgb == (0, 0, 255):
-        return vector.parse_color(palette["extra3"], in_opa)
-
-    # no conditions met -> return original color
-    return in_color
+        # no conditions met -> return original color
+        return in_color
 
 
-def render_from_svg(in_file: str, render_size: vector.IntPair) -> vector.RenderSurface:
+def draw_circle(image: Image, radius: float, outline: float):
+    w, h = image.width, image.height
+
+    _, col1, col2 = CURRENT_PALETTE["primary"].split(" ")
+    lin_grad = LinearGradient(col1, col2, 90)
+    lin_grad.bake(w, h, scale=1, resolution=100)
+
+    def get_circle_pixel(i):
+        y, x = i // w, i % w
+        dist_2 = (x - w / 2) ** 2 + (y - h / 2) ** 2
+
+        # interior
+        rad_2 = (radius * w / 2) ** 2
+        if dist_2 <= rad_2:
+            return lin_grad.calculate2D(x, y)
+
+        # outline
+        out_2 = (outline * w / 2) ** 2
+        if dist_2 <= out_2:
+            return (255,) * 4
+
+        # exterior
+        return (0, 0, 0, 0)
+
+    circle_pixels = list(map(get_circle_pixel, range(w * h)))
+    image.putdata(circle_pixels)
+
+
+def render_svg(
+    path: str, render_size: IntPair, color_scheme: Optional[str] = None
+) -> PILImage:
     """ Create a custom styled png from svg file """
 
     global CURRENT_PALETTE
 
-    # DESIGN CORE PARAMETERS
-    # ----------------------
+    # Design Parameters
+    # ---------------------
     svg_fraction = 0.5
-    circle_fraction = 0.8
-    # ----------------------
+    circle_fraction = 0.77
+    outline_fraction = 0.83
+    # ---------------------
 
-    surface = vector.RenderSurface(render_size)
-    surface_bb = vector.BBox(render_size)
+    # set color scheme
+    color_scheme = color_scheme or random.choice(list(PALETTES.keys()))
+    CURRENT_PALETTE = PALETTES[color_scheme]
 
-    # color map to create dynamic colours from rules
-    CURRENT_PALETTE = random.choice(PALETTES)
-    surface.set_color_map(color_map)
+    # render at twice the final size
+    initial_size = tuple(map(lambda x: x * 2, render_size))
 
-    # background circle
-    circle = vector.DrawableEllipse("")
-    circle.set_center(render_size[0] / 2)
-    circle.set_radius(render_size[0] * circle_fraction / 2)
-    circle.style.fillcolor = vector.Color("#000000")
-    circle.draw(surface)
+    # create surface with background circle
+    surface_bb = BBox(initial_size)
+    surface_im = Image.new("RGBA", initial_size)
+    draw_circle(surface_im, circle_fraction, outline_fraction)
 
-    # svg processing
-    draw_store = parser.parse_svg_file(in_file)
-    svg_bb = surface_bb.get_sub_bbox((svg_fraction, svg_fraction))
+    # draw svg on separate image for remapping
+    svg_im = Image.new("RGBA", initial_size)
+    svg_bb = surface_bb.get_sub_bbox(svg_fraction)
+    draw_store = parser.parse_svg_file(path)
+    draw_store.draw_all(svg_im, tuple(svg_bb))
 
-    # draw svg on surface
-    transform = draw_store.get_transform(svg_bb)
-    draw_store.draw_all(surface, transform)
+    # remap svg colors
+    pixdata = svg_im.load()
+    cmap = ColorMap()
+    for j in range(svg_im.height):
+        for i in range(svg_im.width):
+            pixdata[i, j] = cmap.remap(pixdata[i, j])
 
-    return surface
+    # paste svg on background image
+    surface_im.alpha_composite(svg_im)
+
+    # downsample with BICUBIC filter
+    return surface_im.resize(render_size, resample=Image.BICUBIC)

@@ -1,13 +1,11 @@
 # Vector Module
 # -------------
 # Functions for drawing vectors onto surface
-# Customized for svg rendering, but not limited
+# Specialized for svg rendering
 
 # vector
 # ├─ draw
-# │  ├─ pillow@7.2.0
-# │  └─ base
-# └─ colors
+#    ├─ pillow@7.2.0
+#    └─ base
 
 from .draw import *
-from .colors import *

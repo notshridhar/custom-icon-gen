@@ -2,13 +2,10 @@
 .mypy_cache/
 .vscode/
 __pycache__/
-output/
-
 .DS_Store
 
-activate_env
+env/
+output/
 
-test.py
-test.svg
-
-**.png
+tests/svg_files/*.png
+test.*
