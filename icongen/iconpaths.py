@@ -7,6 +7,10 @@ def darwin_decode_path(encoded_path: str) -> str:
     # explicit path
     if encoded_path.startswith("e:"):
         dest_path = encoded_path[2:]
+    
+    # dummy path
+    elif encoded_path.startswith("~"):
+        dest_path = ""
 
     # app icon convention
     else:
@@ -21,9 +25,8 @@ def darwin_get_store() -> List[Dict[str, str]]:
 
     for line in darwin_package_store.split("\n"):
         line = line.strip()
-        if not line or not line.startswith("#"):  # WRONG LOGIC -> TODO: remove
+        if not line or line.startswith("#"):
             continue
-        line = line[1:]  # WRONG LOGIC
 
         iconpath, svgname = line.split("=>")
         svgname, color = svgname.strip().split("@")
@@ -68,6 +71,7 @@ darwin_package_store = """
     Stocks>AppIcon_macOS    => stocks@red
     TextEdit>Edit           => paper@green
     Time Machine>backup     => time_machine@pink
+    ~                       => voicememo@green
     Automator>Automator         => robot_arm@blue
     Automator>AutomatorApplet   => robot_arm@blue
     Image Capture>ImageCapture  => capture@red
@@ -117,5 +121,11 @@ darwin_package_store = """
     Mounty>AppIcon          => mountains@blue
     Paintbrush>AppIcon      => paintbrush@green
     GIMP-2.10>gimp          => gimp@green
+    ~                       => eagle@yellow
+    uTorrent Web>AppIcon    => utorrent@green
+    Microsoft Teams>icon    => teams@blue
+    zoom.us>ZPLogo          => zoom@blue
+    Discord>electron        => discord@pink
+    Postman>postman         => postman@red
     The Unarchiver>unarchiver   => zip@yellow
 """

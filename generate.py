@@ -65,7 +65,7 @@ class DarwinGenerator:
             color_scheme = pack_meta["color"]
 
             # skip if destination path doesnt exist
-            if not os.path.exists(dest_path):
+            if dest_path and not os.path.exists(dest_path):
                 continue
 
             svg_path = f"./icons/svg/{svg_name}.svg"
@@ -78,7 +78,7 @@ class DarwinGenerator:
                 image.save(png_path, "PNG")
 
             # create and replace icns
-            if replace:
+            if replace and dest_path:
                 cls.create_icns(png_path, icn_path)
                 shutil.move(icn_path, dest_path)
 
