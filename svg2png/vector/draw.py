@@ -4,56 +4,26 @@
 
 
 from typing import Optional, Union
-from typing import Tuple, List, Dict
+from typing import Tuple, List, Dict, Sequence
 
 from copy import deepcopy
 from abc import abstractmethod, ABC
 
 from PIL import Image, ImageDraw  # type: ignore
+from PIL.Image import Image as PILImage  # type: ignore
 
-from .base import Point, Transform, BBox
-from .colors import Color
-
+from .base import Point, Transform
 
 # type hints
 Number = Union[int, float]
 Pair = Tuple[Number, Number]
-IntPair = Tuple[int, int]
-
-
-# SURFACE
-# =====================
-class RenderSurface:
-    """
-    Wrapper class around PIL.Image
-    ------------------------------
-    Mode = RGBA
-    """
-
-    def __init__(self, size: IntPair):
-        self.image = Image.new("RGBA", size)
-        self.draw = ImageDraw.Draw(self.image)
-
-    def save(self, filename: str, final_size: Optional[IntPair] = None):
-        """
-        Save the rendered image with optional anti-aliasing
-        If final size is given, saves resized image with antialiasing
-        """
-        if final_size:
-            resized = self.image.resize(final_size, resample=Image.ANTIALIAS)
-            resized.save(filename, "PNG")
-        else:
-            self.image.save(filename, "PNG")
 
 
 # DRAWABLE OBJECTS
 # =====================
 class DrawableStyle:
     def __init__(self, attrib: dict = {}):
-
-        self.fillcolor = Color()
-        self.linecolor = Color()
-
+        self.fillcolor = ""
         self.update(attrib)
 
     def update(self, attrib: dict):
@@ -61,25 +31,16 @@ class DrawableStyle:
         Updates style inplace
         update policy: override [newer first]
         """
-        fill = attrib.get("fill", "")
-        stroke = attrib.get("stroke", "")
-        tot_o = float(attrib.get("opacity", 1))
-        fill_o = float(attrib.get("fill-opacity", 1)) * tot_o
-        stroke_o = float(attrib.get("stroke-opacity", 1)) * tot_o
-
-        if fill:
-            self.fillcolor = Color(fill, opacity=fill_o)
-
-        if stroke:
-            self.linecolor = Color(stroke, opacity=stroke_o)
+        tot_opa = float(attrib.get("opacity", 1))
+        fill_opa = float(attrib.get("fill-opacity", 1)) * tot_opa
+        fill_col = attrib.get("fill", self.fillcolor) if fill_opa else ""
+        self.fillcolor = fill_col
 
     def as_dict(self) -> dict:
-        style_dict = {}
-        style_dict["fill"] = self.fillcolor.as_hex()
-        style_dict["fill-opacity"] = str(self.fillcolor.opacity)
-        style_dict["stroke"] = self.linecolor.as_hex()
-        style_dict["stroke-opacity"] = str(self.linecolor.opacity)
-        return style_dict
+        return {
+            "fill": self.fillcolor,
+            "fill-opacity": 1,
+        }
 
     def copy(self) -> "DrawableStyle":
         return deepcopy(self)
@@ -97,7 +58,7 @@ class Drawable(ABC):
         return deepcopy(self)
 
     @abstractmethod
-    def draw(self, surface: RenderSurface, transform=Transform()):
+    def draw(self, imdraw: ImageDraw, transform=Transform()):
         """ Handle drawing on surface (abstract) """
         pass
 
@@ -151,36 +112,29 @@ class DrawablePath(Drawable):
         current_subpath.append(dest)
         self.current_pos = dest
 
-    def draw(self, surface: RenderSurface, transform=Transform()):
-        """
-        Draw path on surface
-        --------------------
-        - surface   (RenderSurface) - surface to draw on
-        - transform (Transform)     - transforms to apply while drawing
-        """
+    def draw(self, imdraw: ImageDraw, transform=Transform()):
+        """ Draw path on the image """
 
-        fill = self.style.fillcolor.rgba
-        stroke = self.style.linecolor.rgba
+        # skip transparent
+        fillcol = self.style.fillcolor
+        if not fillcol:
+            return
 
-        for path in self.subpaths:
-            # apply transforms to points and convert to tuple for drawing
+        # filter closable paths for drawing
+        closed_paths = filter(lambda x: len(x) > 2, self.subpaths)
+
+        # apply transforms and draw
+        for path in closed_paths:
             path_tuple = [tuple(p.transform(transform)) for p in path]
-
-            # skip if very few points
-            if len(path_tuple) < 2:
-                continue
-
-            # ignore stroke, only opaque fill
-            if fill[-1]:
-                surface.draw.polygon(path_tuple, fill=fill[:3])
+            imdraw.polygon(path_tuple, fill=fillcol)
 
 
 # OBJECT STORAGE
 # =====================
 class DrawableObjectStore:
-    def __init__(self, canvas: IntPair):
+    def __init__(self, canvas: Tuple[int, int]):
 
-        self.canvas_size = canvas
+        self.canvas_size = Point(canvas)
 
         # drawables stored in drawing order
         self._objects: List[Drawable] = []
@@ -220,11 +174,32 @@ class DrawableObjectStore:
         self._objects.clear()
         self._named.clear()
 
-    def get_transform(self, out_bbox: BBox) -> Transform:
-        scale_y = out_bbox.height / self.canvas_size[1]
-        scale_x = out_bbox.width / self.canvas_size[0]
-        return Transform(out_bbox.offset, (scale_x, scale_y))
+    def draw_all(
+        self,
+        image: Optional[PILImage] = None,
+        bounding_box: Optional[Sequence[float]] = None,
+    ) -> PILImage:
+        """
+        Draw all the drawables onto given image inside bounding box.
+        If image is not given, creates a new image.
+        Modifies image inplace and also returns it.
+        """
 
-    def draw_all(self, surface: RenderSurface, transform=Transform()):
+        # get or construct image
+        image = image or Image.new("RGBA", self.canvas_size)
+        imdraw = ImageDraw.Draw(image)
+
+        # construct transform if bbox given
+        if bounding_box:
+            left, top, width, height = bounding_box
+            offset = (left, top)
+            scale = (width / self.canvas_size.x, height / self.canvas_size.y)
+            transform = Transform(offset, scale)
+        else:
+            transform = Transform()
+
+        # draw all
         for drw in self._objects:
-            drw.draw(surface, transform)
+            drw.draw(imdraw, transform)
+
+        return image

@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Dict
 
 
 def darwin_decode_path(encoded_path: str) -> str:
@@ -16,7 +16,7 @@ def darwin_decode_path(encoded_path: str) -> str:
     return dest_path
 
 
-def darwin_get_store() -> List[Tuple[str, str]]:
+def darwin_get_store() -> List[Dict[str, str]]:
     store_list = []
 
     for line in darwin_package_store.split("\n"):
@@ -24,91 +24,98 @@ def darwin_get_store() -> List[Tuple[str, str]]:
         if not line or not line.startswith("#"):  # WRONG LOGIC -> TODO: remove
             continue
         line = line[1:]  # WRONG LOGIC
+
         iconpath, svgname = line.split("=>")
-        iconpath = darwin_decode_path(iconpath.strip())
-        store_list.append((iconpath, svgname.strip()))
+        svgname, color = svgname.strip().split("@")
+
+        store_item = {
+            "dest": darwin_decode_path(iconpath.strip()),
+            "svg": svgname.strip(),
+            "color": color.strip(),
+        }
+        store_list.append(store_item)
 
     return store_list
 
 
 darwin_package_store = """
-    App Store>AppIcon       => app_store
-    AppCleaner>AppCleaner   => recycle
-    #Books>iBooksAppIcon     => book
-    Calendar>App            => calendar
-    Calendar>App-empty      => calendar
-    Calculator>AppIcon      => calculator
-    Contacts>Contacts       => contact
-    Chess>Chess             => chess
-    Dashboard>Dashboard     => dashboard
-    Dictionary>Dictionary   => dictionary
-    Facetime>AppIcon        => facetime
-    Font Book>appicon       => font
-    Home>AppIcon-mac        => home
-    iTunes>iTunes           => music
-    Launchpad>Launchpad     => rocket
-    Mail>ApplicationIcon    => mail
-    Mission Control>Expose  => mission
-    Maps>maps               => location
-    Notes>AppIcon           => notes
-    Photos>AppIcon          => gallery
-    Preview>Preview         => preview
-    Reminders>icon          => bell
-    Reminders>Reminders     => bell
-    Safari>compass          => safari
-    Siri>Siri               => microphone
-    Stickies>Stickies       => pin
-    Stocks>AppIcon_macOS    => stocks
-    TextEdit>Edit           => paper
-    Time Machine>backup     => time_machine
-    Automator>Automator         => robot_arm
-    Automator>AutomatorApplet   => robot_arm
-    Image Capture>ImageCapture  => capture
-    Messages>MessagesAppIcon    => message
-    Photo Booth>PhotoBoothIcon  => camera
-    System Preferences>PrefApp  => settings
-    QuickTime Player>QuickTimePlayerX   => quicktime
-    Soundflower/Soundflowerbed>appIcon  => flower
+    App Store>AppIcon       => app_store@blue
+    AppCleaner>AppCleaner   => recycle@yellow
+    Books>iBooksAppIcon     => book@red
+    Calendar>App            => calendar@green
+    Calendar>App-empty      => calendar@green
+    Calculator>AppIcon      => calculator@pink
+    Contacts>Contacts       => contact@blue
+    Chess>Chess             => chess@pink
+    Dashboard>Dashboard     => dashboard@blue
+    Dictionary>Dictionary   => dictionary@yellow
+    Facetime>AppIcon        => facetime@green
+    Font Book>appicon       => font@blue
+    Home>AppIcon-mac        => home@red
+    iTunes>iTunes           => music@blue
+    Launchpad>Launchpad     => rocket@green
+    Mail>ApplicationIcon    => mail@yellow
+    Mission Control>Expose  => mission@pink
+    Maps>maps               => location@green
+    Notes>AppIcon           => notes@red
+    Photos>AppIcon          => gallery@yellow
+    Preview>Preview         => preview@pink
+    Reminders>icon          => bell@red
+    Reminders>Reminders     => bell@red
+    Safari>compass          => safari@blue
+    Siri>Siri               => microphone@pink
+    Stickies>Stickies       => pin@yellow
+    Stocks>AppIcon_macOS    => stocks@red
+    TextEdit>Edit           => paper@green
+    Time Machine>backup     => time_machine@pink
+    Automator>Automator         => robot_arm@blue
+    Automator>AutomatorApplet   => robot_arm@blue
+    Image Capture>ImageCapture  => capture@red
+    Messages>MessagesAppIcon    => message@green
+    Photo Booth>PhotoBoothIcon  => camera@pink
+    System Preferences>PrefApp  => settings@green
+    QuickTime Player>QuickTimePlayerX   => quicktime@blue
+    Soundflower/Soundflowerbed>appIcon  => flower@yellow
 
-    Utilities/AU Lab>PPIcon     => wave
-    Utilities/Console>AppIcon   => wrench
-    Utilities/Grapher>Grapher   => graph
-    Utilities/Terminal>Terminal => terminal
-    Utilities/Disk Utility>AppIcon  => disk
-    Utilities/Screenshot>AppIcon    => screenshot
-    Utilities/Boot Camp Assistant>DA    => windows
-    Utilities/Keychain Access>AppIcon   => key
-    Utilities/System Information>ASP    => microchip
-    Utilities/Digital Color Meter>AppIcons  => color_picker
-    Utilities/Script Editor>SEScriptEditorX => script
-    Utilities/Voiceover Utility>voiceover   => voiceover
-    Utilities/Activity Monitor>ActivityMonitor  => wave
-    Utilities/AirPort Utility>AirPortUtility    => wifi
-    Utilities/Audio MIDI Setup>AudioMidiSetup   => midi
-    Utilities/Migration Assistant>MigrateAsst   => migration
-    Utilities/ColorSync Utility>ColorSyncUtility    => sync
-    Utilities/Bluetooth File Exchange>BluetoothFileExchange => bluetooth
+    Utilities/AU Lab>PPIcon     => wave@green
+    Utilities/Console>AppIcon   => wrench@red
+    Utilities/Grapher>Grapher   => graph@pink
+    Utilities/Terminal>Terminal => terminal@black
+    Utilities/Disk Utility>AppIcon  => disk@yellow
+    Utilities/Screenshot>AppIcon    => screenshot@blue
+    Utilities/Boot Camp Assistant>DA    => windows@yellow
+    Utilities/Keychain Access>AppIcon   => key@red
+    Utilities/System Information>ASP    => microchip@black
+    Utilities/Digital Color Meter>AppIcons  => color_picker@pink
+    Utilities/Script Editor>SEScriptEditorX => script@black
+    Utilities/Voiceover Utility>voiceover   => voiceover@yellow
+    Utilities/Activity Monitor>ActivityMonitor  => wave@black
+    Utilities/AirPort Utility>AirPortUtility    => wifi@green
+    Utilities/Audio MIDI Setup>AudioMidiSetup   => midi@pink
+    Utilities/Migration Assistant>MigrateAsst   => migration@red
+    Utilities/ColorSync Utility>ColorSyncUtility    => sync@yellow
+    Utilities/Bluetooth File Exchange>BluetoothFileExchange => bluetooth@blue
 
-    e:/System/Library/CoreServices/Dock.app/Contents/Resources/finder.png           => finder
-    e:/System/Library/CoreServices/Dock.app/Contents/Resources/finder@2x.png        => finder
-    e:/System/Library/CoreServices/Dock.app/Contents/Resources/trashfull.png        => trash_full
-    e:/System/Library/CoreServices/Dock.app/Contents/Resources/trashfull2.png       => trash_full
-    e:/System/Library/CoreServices/Dock.app/Contents/Resources/trashfull@2x.png     => trash_full
-    e:/System/Library/CoreServices/Dock.app/Contents/Resources/trashfull2@2x.png    => trash_full
-    e:/System/Library/CoreServices/Dock.app/Contents/Resources/trashempty.png       => trash_empty
-    e:/System/Library/CoreServices/Dock.app/Contents/Resources/trashempty2.png      => trash_empty
-    e:/System/Library/CoreServices/Dock.app/Contents/Resources/trashempty@2x.png    => trash_empty
-    e:/System/Library/CoreServices/Dock.app/Contents/Resources/trashempty2@2x.png   => trash_empty
+    e:/System/Library/CoreServices/Dock.app/Contents/Resources/finder.png           => finder@blue
+    e:/System/Library/CoreServices/Dock.app/Contents/Resources/finder@2x.png        => finder@blue
+    e:/System/Library/CoreServices/Dock.app/Contents/Resources/trashfull.png        => trash_full@pink
+    e:/System/Library/CoreServices/Dock.app/Contents/Resources/trashfull2.png       => trash_full@pink
+    e:/System/Library/CoreServices/Dock.app/Contents/Resources/trashfull@2x.png     => trash_full@pink
+    e:/System/Library/CoreServices/Dock.app/Contents/Resources/trashfull2@2x.png    => trash_full@pink
+    e:/System/Library/CoreServices/Dock.app/Contents/Resources/trashempty.png       => trash_empty@pink
+    e:/System/Library/CoreServices/Dock.app/Contents/Resources/trashempty2.png      => trash_empty@pink
+    e:/System/Library/CoreServices/Dock.app/Contents/Resources/trashempty@2x.png    => trash_empty@pink
+    e:/System/Library/CoreServices/Dock.app/Contents/Resources/trashempty2@2x.png   => trash_empty@pink
 
-    Python 3.7/IDLE>IDLE    => python_idle
-    Python 3.7/Python Launcher>PythonLauncher   => python
+    Python 3.7/IDLE>IDLE    => python_idle@yellow
+    Python 3.7/Python Launcher>PythonLauncher   => python@red
 
-    Firefox>firefox         => firefox
-    Visual Studio Code>Code => vscode
-    VLC>VLC                 => vlc
-    VLC>VLC-Xmas            => vlc
-    Mounty>AppIcon          => mountains
-    Paintbrush>AppIcon      => paintbrush
-    GIMP-2.10>gimp          => gimp
-    The Unarchiver>unarchiver   => zip
+    Firefox>firefox         => firefox@pink
+    Visual Studio Code>Code => vscode@blue
+    VLC>VLC                 => vlc@red
+    VLC>VLC-Xmas            => vlc@red
+    Mounty>AppIcon          => mountains@blue
+    Paintbrush>AppIcon      => paintbrush@green
+    GIMP-2.10>gimp          => gimp@green
+    The Unarchiver>unarchiver   => zip@yellow
 """

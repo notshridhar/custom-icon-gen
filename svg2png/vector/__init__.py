@@ -5,9 +5,7 @@
 
 # vector
 # ├─ draw
-# │  ├─ pillow@7.2.0
-# │  └─ base
-# └─ colors
+#    ├─ pillow@7.2.0
+#    └─ base
 
 from .draw import *
-from .colors import *
