@@ -2,7 +2,7 @@
 
 A dynamic icon pack generator from plain vectors. Customizable styles and colors for icons.
 
-![](./images/preview_default.png)
+![](./images/preview_default.png)<br>
 *Icons built with default style*
 
 
