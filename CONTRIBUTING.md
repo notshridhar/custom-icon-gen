@@ -1,15 +1,12 @@
-## Testing
+## Code Changes
+
+Run static type checking to eliminate trivial bugs.
+Run code formatting for a clean codebase.
+
 
 ``` bash
-source path-to-env/bin/activate
-
-# type checking
 mypy .
 
-# unit tests
-python -m unittest discover -s tests
-
-# formatting
 black --check .
 black .
 ```
