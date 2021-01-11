@@ -54,10 +54,10 @@ class DarwinGenerator:
         # create output dirs
         orig_umask = os.umask(0)
         os.makedirs(outimg, exist_ok=True)
-        # os.makedirs(outico, exist_ok=True)
+        os.makedirs(outico, exist_ok=True)
         os.umask(orig_umask)
 
-        icon_list = iconpaths.darwin_get_store()
+        icon_list = iconpaths.darwin_package_list()
         for i, pack_meta in enumerate(icon_list):
 
             dest_path = pack_meta["dest"]
@@ -83,7 +83,8 @@ class DarwinGenerator:
                 shutil.move(icn_path, dest_path)
 
             # progress bar
-            print(dest_path, " " * (40 - len(dest_path)))
+            outstr = dest_path if replace else f"{svg_name}@{color_scheme}"
+            print(outstr, " " * (40 - len(outstr)))
             prog = int((i + 1) * 20 / len(icon_list))
             prog_bar = "=" * prog + " " * (20 - prog)
             print(f"[{prog_bar}] {prog*5}%", end="\r")
@@ -96,7 +97,7 @@ class DarwinGenerator:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser("icongen")
     parser.add_argument(
-        "--replace", action="store_true", help="replace system files [sudo]"
+        "--replace", action="store_true", help="replace icon files [sudo]"
     )
     return parser.parse_args()
 

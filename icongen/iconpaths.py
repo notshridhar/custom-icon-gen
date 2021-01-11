@@ -1,44 +1,38 @@
 from typing import List, Dict
 
 
-def darwin_decode_path(encoded_path: str) -> str:
-    """ Construct full path from shortened path """
+def darwin_package_list() -> List[Dict[str, str]]:
+    def construct_path(encoded_path: str) -> str:
+        """ Construct full path from shortened path """
 
-    # explicit path
-    if encoded_path.startswith("e:"):
-        dest_path = encoded_path[2:]
-    
-    # dummy path
-    elif encoded_path.startswith("~"):
-        dest_path = ""
+        # explicit path
+        if encoded_path.startswith("e:"):
+            return encoded_path[2:]
 
-    # app icon convention
-    else:
-        app_name, icon_name = encoded_path.split(">")
-        dest_path = f"/Applications/{app_name}.app/Contents/Resources/{icon_name}.icns"
+        # dummy path
+        elif encoded_path.startswith("~"):
+            return ""
 
-    return dest_path
+        # app icon convention
+        else:
+            app_name, icon_name = encoded_path.split(">")
+            return f"/Applications/{app_name}.app/Contents/Resources/{icon_name}.icns"
 
-
-def darwin_get_store() -> List[Dict[str, str]]:
-    store_list = []
-
-    for line in darwin_package_store.split("\n"):
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-
+    def parse_line(line: str) -> dict:
+        """ Parse single line to get dict of package data """
         iconpath, svgname = line.split("=>")
         svgname, color = svgname.strip().split("@")
 
-        store_item = {
-            "dest": darwin_decode_path(iconpath.strip()),
+        return {
+            "dest": construct_path(iconpath.strip()),
             "svg": svgname.strip(),
             "color": color.strip(),
         }
-        store_list.append(store_item)
 
-    return store_list
+    # trim whitespace + remove comments + parse each line
+    trimmed = [x.strip() for x in darwin_package_store.split("\n")]
+    filtered = [x for x in trimmed if x and not x.startswith("#")]
+    return list(map(parse_line, filtered))
 
 
 darwin_package_store = """
@@ -71,7 +65,7 @@ darwin_package_store = """
     Stocks>AppIcon_macOS    => stocks@red
     TextEdit>Edit           => paper@green
     Time Machine>backup     => time_machine@pink
-    ~                       => voicememo@green
+    ~VoiceMemo>voicememo    => voicememo@green
     Automator>Automator         => robot_arm@blue
     Automator>AutomatorApplet   => robot_arm@blue
     Image Capture>ImageCapture  => capture@red
@@ -121,7 +115,7 @@ darwin_package_store = """
     Mounty>AppIcon          => mountains@blue
     Paintbrush>AppIcon      => paintbrush@green
     GIMP-2.10>gimp          => gimp@green
-    ~                       => eagle@yellow
+    ~Eagle>eagle            => eagle@yellow
     uTorrent Web>AppIcon    => utorrent@green
     Microsoft Teams>icon    => teams@blue
     zoom.us>ZPLogo          => zoom@blue
